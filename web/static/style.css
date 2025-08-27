@@ -1,0 +1,42 @@
+body {
+    font-family: system-ui, sans-serif;
+    background: #f7f7fa;
+    margin: 0;
+    padding: 0;
+}
+header {
+    background: #22223b;
+    color: #fff;
+    padding: 1rem;
+    text-align: center;
+}
+main {
+    max-width: 800px;
+    margin: 2rem auto;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    padding: 2rem;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+th, td {
+    border: 1px solid #e0e0e0;
+    padding: 0.5rem 1rem;
+    text-align: left;
+}
+th {
+    background: #4a4e69;
+    color: #fff;
+}
+.tag {
+    background: #9a8c98;
+    color: #fff;
+    border-radius: 4px;
+    padding: 0.2em 0.6em;
+    margin-right: 0.2em;
+    font-size: 0.9em;
+}

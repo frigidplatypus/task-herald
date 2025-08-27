@@ -1,0 +1,10 @@
+# Taskwarrior Notifications Config
+poll_interval: 30s  # How often to poll Taskwarrior (e.g., 30s, 1m)
+notification_service: ntfy
+ntfy:
+  url: "https://ntfy.sh"
+  topic: "task-herald"
+  token: ""
+web:
+  listen: "127.0.0.1:8080"
+  auth: false
