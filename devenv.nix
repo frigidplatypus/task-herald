@@ -14,7 +14,12 @@
     pkgs.git
     pkgs.reflex
     pkgs.just
+    pkgs.nodePackages.concurrently
   ];
+  languages.javascript = {
+    enable = true;
+    package = pkgs.nodejs_20;
+  };
 
   # dotenv.enable = true;
 

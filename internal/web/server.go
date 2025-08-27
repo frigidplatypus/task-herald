@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os/exec"
 	"path/filepath"
+	"encoding/json"
 
 	"github.com/yourusername/task-herald/internal/taskwarrior"
 )
@@ -28,9 +29,19 @@ func (s *Server) Serve(addr string) error {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 	http.HandleFunc("/", s.handleIndex)
 	http.HandleFunc("/api/tasks", s.handleTasks)
+	http.HandleFunc("/api/tasks/json", s.handleTasksJSON)
 	http.HandleFunc("/api/set-notification-date", s.handleSetNotificationDate)
 	log.Printf("Web UI listening on %s", addr)
 	return http.ListenAndServe(addr, nil)
+}
+
+// handleTasksJSON returns the list of tasks as JSON for the SPA frontend
+func (s *Server) handleTasksJSON(w http.ResponseWriter, r *http.Request) {
+	tasks := s.GetTasks()
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(tasks); err != nil {
+		 http.Error(w, "Failed to encode tasks", http.StatusInternalServerError)
+	}
 }
 // ...existing code...
 // handleSetNotificationDate sets the notification_date UDA for a task by UUID using task modify.
@@ -41,17 +52,23 @@ func (s *Server) handleSetNotificationDate(w http.ResponseWriter, r *http.Reques
        }
        uuid := r.FormValue("uuid")
        dateTimeLocal := r.FormValue("notification_date")
-       if uuid == "" || dateTimeLocal == "" {
-	       http.Error(w, "Missing uuid or notification_date", http.StatusBadRequest)
+       if uuid == "" {
+	       http.Error(w, "Missing uuid", http.StatusBadRequest)
 	       return
        }
-       // Convert from HTML5 datetime-local (YYYY-MM-DDTHH:MM) to Taskwarrior format (YYYY-MM-DD HH:MM:SS)
-       formatted := dateTimeLocal
-       if len(dateTimeLocal) >= 16 {
-	       // Insert a space instead of 'T' and add :00 seconds if not present
-	       formatted = dateTimeLocal[:10] + " " + dateTimeLocal[11:16] + ":00"
+       var cmd *exec.Cmd
+       if dateTimeLocal == "" {
+	       // Clear notification_date
+	       cmd = exec.Command("task", uuid, "modify", "notification_date:")
+       } else {
+	       // Convert from HTML5 datetime-local (YYYY-MM-DDTHH:MM) to Taskwarrior format (YYYY-MM-DD HH:MM:SS)
+	       formatted := dateTimeLocal
+	       if len(dateTimeLocal) >= 16 {
+		       // Insert a space instead of 'T' and add :00 seconds if not present
+		       formatted = dateTimeLocal[:10] + " " + dateTimeLocal[11:16] + ":00"
+	       }
+	       cmd = exec.Command("task", uuid, "modify", "notification_date:"+formatted)
        }
-       cmd := exec.Command("task", uuid, "modify", "notification_date:"+formatted)
        if err := cmd.Run(); err != nil {
 	       http.Error(w, "Failed to set notification_date", http.StatusInternalServerError)
 	       return
