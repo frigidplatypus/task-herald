@@ -38,9 +38,6 @@
     return task[key] ?? '';
   }
 
-  // Debug: log tasks and config
-  console.log('Raw tasks prop:', tasks);
-  console.log('Current config:', currentConfig);
 
   // Apply sorting based on configuration
   let displayedTasks: typeof tasks = tasks;
@@ -58,8 +55,6 @@
     } else {
       displayedTasks = tasks;
     }
-    console.log('Displayed tasks after sort:', displayedTasks);
-    console.log('Urgency values:', displayedTasks.map(t => t.urgency));
   }
   // Convert to local datetime string for editing
   function toDatetimeLocal(dateStr: string | undefined): string {

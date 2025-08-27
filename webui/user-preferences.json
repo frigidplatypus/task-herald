@@ -1,0 +1,19 @@
+{
+  "default": {
+    "columnOrder": [
+      "id",
+      "uuid",
+      "description",
+      "notification_date",
+      "tags",
+      "priority",
+      "project",
+      "status",
+      "urgency"
+    ],
+    "sortOptions": {
+      "key": "id",
+      "direction": "asc"
+    }
+  }
+}

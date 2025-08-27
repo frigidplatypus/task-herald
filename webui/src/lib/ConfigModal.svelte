@@ -11,7 +11,10 @@
   // Available TaskWarrior columns fetched from API
   let columns: { key: string; label: string }[] = [];
 
-  // Fetch columns from backend
+
+  import { get } from 'svelte/store';
+
+  // Fetch columns from backend and initialize modal state from config
   onMount(async () => {
     try {
       const res = await fetch('/api/tasks/json');
@@ -26,9 +29,26 @@
     } catch (err) {
       console.error('Failed to load columns', err);
     }
-    // Initialize drag items
-    dndItems = columns.map((c) => ({ id: c.key, label: c.label, enabled: true }));
-    defaultSortKey = columns[0]?.key || '';
+    // Initialize drag items and sort from config
+    const currentConfig = get(config);
+    // If config columns are set, use that order and enabled state
+    if (currentConfig.columns && currentConfig.columns.length > 0) {
+      dndItems = columns.map((c) => ({
+        id: c.key,
+        label: c.label,
+        enabled: currentConfig.columns.includes(c.key)
+      }));
+      // Reorder dndItems to match config.columns order for enabled columns
+      const enabledOrder = currentConfig.columns;
+      dndItems = [
+        ...enabledOrder.map(key => dndItems.find(item => item.id === key)).filter(Boolean),
+        ...dndItems.filter(item => !enabledOrder.includes(item.id))
+      ];
+    } else {
+      dndItems = columns.map((c) => ({ id: c.key, label: c.label, enabled: true }));
+    }
+    defaultSortKey = currentConfig.sort?.key || columns[0]?.key || '';
+    sortDirection = currentConfig.sort?.direction || 'asc';
   });
 
   // Items for drag-and-drop: include enabled state (initialized after fetch)

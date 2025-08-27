@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
-import { browser } from '$app/environment';
+
+const browser = typeof window !== 'undefined';
 
 export type SortDirection = 'asc' | 'desc';
 export interface Config {
@@ -7,16 +8,29 @@ export interface Config {
   sort: { key: string; direction: SortDirection };
 }
 
-// Load persisted config or fallback to defaults
 const defaultConfig: Config = { columns: [], sort: { key: '', direction: 'asc' } };
-const stored = browser ? localStorage.getItem('taskherald-config') : null;
-const initialConfig: Config = stored ? JSON.parse(stored) : defaultConfig;
+export const config = writable<Config>(defaultConfig);
 
-export const config = writable<Config>(initialConfig);
-
-// Persist config on changes
+// Load config from backend on startup (browser only)
 if (browser) {
+  fetch('/api/user-preferences')
+    .then((res) => res.ok ? res.json() : null)
+    .then((prefs) => {
+      if (prefs && prefs.columnOrder && prefs.sortOptions) {
+        config.set({ columns: prefs.columnOrder, sort: prefs.sortOptions });
+      }
+    })
+    .catch(() => {});
+
+  // Persist config to backend on changes
+  let skipFirst = true;
   config.subscribe((val) => {
-    localStorage.setItem('taskherald-config', JSON.stringify(val));
+    // Avoid sending default config on first load
+    if (skipFirst) { skipFirst = false; return; }
+    fetch('/api/user-preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ columnOrder: val.columns, sortOptions: val.sort })
+    });
   });
 }
