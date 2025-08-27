@@ -1,12 +1,17 @@
 <script lang="ts">
+
   import { config } from '$lib/config';
-  import { get } from 'svelte/store';
+  import { derived } from 'svelte/store';
 
   export let tasks: Array<Record<string, any>> = [];
 
-  // User configuration from store
-  let currentConfig = get(config);
-  config.subscribe((c) => (currentConfig = c));
+  // Wait for config to load before rendering
+  let currentConfig = { columns: [], sort: { key: '', direction: 'asc' } };
+  let loading = true;
+  config.subscribe((state) => {
+    currentConfig = state.config;
+    loading = state.loading;
+  });
 
   // Inline edit state
   let editingId: number | null = null;
@@ -87,38 +92,42 @@
   }
 </script>
 
-<table>
-  <thead>
-    <tr>
-      {#each currentConfig.columns as key}
-        <th>{key.replace('_', ' ')}</th>
-      {/each}
-    </tr>
-  </thead>
-  <tbody>
-    {#each displayedTasks as task}
-      <tr>
-        {#each currentConfig.columns as key}
-          <td>
-            {#if key === 'notification_date'}
-              {#if editingId === task.id}
-                <input type="datetime-local" bind:value={editValue}
-                  on:blur={() => saveEdit(task)}
-                  on:keydown={(e) => e.key === 'Enter' && saveEdit(task)}
-                  autofocus
-                />
-                <button type="button" on:click={() => { editValue = ''; saveEdit(task); }} style="margin-left:0.5em">Clear</button>
-              {:else}
-                <span style="cursor:pointer" on:click={() => startEdit(task)}>
-                  {formatDate(task.notification_date)}
-                </span>
-              {/if}
-            {:else}
-              {renderCell(task, key)}
-            {/if}
-          </td>
+  {#if loading}
+    <div>Loading preferences...</div>
+  {:else}
+    <table>
+      <thead>
+        <tr>
+          {#each currentConfig.columns as key}
+            <th>{key.replace('_', ' ')}</th>
+          {/each}
+        </tr>
+      </thead>
+      <tbody>
+        {#each displayedTasks as task}
+          <tr>
+            {#each currentConfig.columns as key}
+              <td>
+                {#if key === 'notification_date'}
+                  {#if editingId === task.id}
+                    <input type="datetime-local" bind:value={editValue}
+                      on:blur={() => saveEdit(task)}
+                      on:keydown={(e) => e.key === 'Enter' && saveEdit(task)}
+                      autofocus
+                    />
+                    <button type="button" on:click={() => { editValue = ''; saveEdit(task); }} style="margin-left:0.5em">Clear</button>
+                  {:else}
+                    <span style="cursor:pointer" on:click={() => startEdit(task)}>
+                      {formatDate(task.notification_date)}
+                    </span>
+                  {/if}
+                {:else}
+                  {renderCell(task, key)}
+                {/if}
+              </td>
+            {/each}
+          </tr>
         {/each}
-      </tr>
-    {/each}
-  </tbody>
-</table>
+      </tbody>
+    </table>
+  {/if}

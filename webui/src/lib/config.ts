@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { writable, type Writable } from 'svelte/store';
 
 const browser = typeof window !== 'undefined';
 
@@ -8,29 +8,37 @@ export interface Config {
   sort: { key: string; direction: SortDirection };
 }
 
-const defaultConfig: Config = { columns: [], sort: { key: '', direction: 'asc' } };
-export const config = writable<Config>(defaultConfig);
+export interface ConfigState {
+  loading: boolean;
+  config: Config;
+}
 
-// Load config from backend on startup (browser only)
+const defaultConfig: Config = { columns: [], sort: { key: '', direction: 'asc' } };
+const initialState: ConfigState = { loading: true, config: defaultConfig };
+export const config: Writable<ConfigState> = writable(initialState);
+
 if (browser) {
   fetch('/api/user-preferences')
     .then((res) => res.ok ? res.json() : null)
     .then((prefs) => {
       if (prefs && prefs.columnOrder && prefs.sortOptions) {
-        config.set({ columns: prefs.columnOrder, sort: prefs.sortOptions });
+        config.set({ loading: false, config: { columns: prefs.columnOrder, sort: prefs.sortOptions } });
+      } else {
+        config.set({ loading: false, config: defaultConfig });
       }
     })
-    .catch(() => {});
+    .catch(() => {
+      config.set({ loading: false, config: defaultConfig });
+    });
 
   // Persist config to backend on changes
   let skipFirst = true;
   config.subscribe((val) => {
-    // Avoid sending default config on first load
     if (skipFirst) { skipFirst = false; return; }
     fetch('/api/user-preferences', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ columnOrder: val.columns, sortOptions: val.sort })
+      body: JSON.stringify({ columnOrder: val.config.columns, sortOptions: val.config.sort })
     });
   });
 }

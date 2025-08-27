@@ -70,8 +70,8 @@
 
   // Close and emit configuration
   function apply() {
-    // Save config to store
-    config.set({ columns: selectedColumns, sort: { key: defaultSortKey, direction: sortDirection } });
+  // Save config to store
+  config.set({ loading: false, config: { columns: selectedColumns, sort: { key: defaultSortKey, direction: sortDirection } } });
     dispatch('close');
   }
 

@@ -2,6 +2,7 @@
 import TaskList from '$lib/TaskList.svelte';
 import { onMount } from 'svelte';
 import { config } from '$lib/config';
+import { get } from 'svelte/store';
 let tasks = [];
 let loading = true;
 onMount(async () => {
@@ -10,10 +11,11 @@ onMount(async () => {
 	if (res.ok) {
 		tasks = await res.json();
 
-		// Initialize config columns and default sort
-		if (tasks.length > 0) {
+		// If no preferences yet, initialize config from task keys
+		const state = get(config);
+		if (!state.loading && state.config.columns.length === 0 && tasks.length > 0) {
 			const keys = Object.keys(tasks[0]);
-			config.set({ columns: keys, sort: { key: keys[0], direction: 'asc' } });
+			config.set({ loading: false, config: { columns: keys, sort: { key: keys[0], direction: 'asc' } } });
 		}
 	} else {
 		tasks = [];
