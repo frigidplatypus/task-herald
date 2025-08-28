@@ -31,17 +31,16 @@ func Run() error {
        )
 
        // Set up Shoutrrr senders if configured
-      var shoutrrrSenders []shoutrrr.Sender
-      if cfg.NotificationService == "shoutrrr" {
-            for _, url := range cfg.Shoutrrr.URLs {
-                   sender, err := shoutrrr.CreateSender(url)
-                   if err != nil {
-                          fmt.Printf("invalid shoutrrr URL '%s': %v\n", url, err)
-                          continue
-                   }
-                   shoutrrrSenders = append(shoutrrrSenders, sender)
-            }
-      }
+         // Initialize Shoutrrr senders
+         var shoutrrrSenders []shoutrrr.Sender
+         for _, url := range cfg.Shoutrrr.URLs {
+                 sender, err := shoutrrr.CreateSender(url)
+                 if err != nil {
+                        fmt.Printf("invalid shoutrrr URL '%s': %v\n", url, err)
+                        continue
+                 }
+                 shoutrrrSenders = append(shoutrrrSenders, sender)
+         }
       // Set up polling
        taskCh := make(chan []taskwarrior.Task)
        stopCh := make(chan struct{})
@@ -54,25 +53,35 @@ func Run() error {
                      tasks = t
                      mu.Unlock()
                    fmt.Printf("Polled %d tasks with notification_date set\n", len(t))
-                   // Send notifications for tasks with notification_date
-                   if cfg.NotificationService == "shoutrrr" {
-                          for _, task := range t {
-                                 if task.NotificationDate == "" {
-                                        continue
-                                 }
-                                 for _, sender := range shoutrrrSenders {
-                                        go func(s shoutrrr.Sender, task taskwarrior.Task) {
-                                               msg := shoutrrr.Message{
-                                                      Title: task.Description,
-                                                      Text:  fmt.Sprintf("Task %d notification: %s", task.ID, task.NotificationDate),
-                                               }
-                                               if err := s.Send(msg); err != nil {
-                                                      fmt.Printf("failed to send notification: %v\n", err)
-                                               }
-                                        }(sender, task)
-                                 }
-                          }
-                   }
+                               // Send notifications for tasks with notification_date
+                               for _, task := range t {
+                                      if task.NotificationDate == "" {
+                                             continue
+                                      }
+                                      // Determine priority emoji
+                                      var priEmoji string
+                                      switch task.Priority {
+                                      case "H": priEmoji = "🔥"
+                                      case "M": priEmoji = "⚠️"
+                                      case "L": priEmoji = "ℹ️"
+                                      default:  priEmoji = "•"
+                                      }
+                                      // Append due date if set
+                                      duePart := ""
+                                      if task.Due != "" {
+                                             duePart = fmt.Sprintf(" 🗓 Due: %s", task.Due)
+                                      }
+                                      // Build message: priority emoji, project, description, due date
+                                      text := fmt.Sprintf("%s %s – %s%s", priEmoji, task.Project, task.Description, duePart)
+                                      for _, sender := range shoutrrrSenders {
+                                             go func(s shoutrrr.Sender, title, body string) {
+                                                    msg := shoutrrr.Message{ Title: title, Text: body }
+                                                    if err := s.Send(msg); err != nil {
+                                                           fmt.Printf("failed to send notification: %v\n", err)
+                                                    }
+                                             }(sender, task.Description, text)
+                                      }
+                               }
               }
        }()
 

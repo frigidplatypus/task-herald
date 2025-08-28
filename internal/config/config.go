@@ -8,9 +8,8 @@ import (
 )
 
 type Config struct {
-	PollInterval        time.Duration `yaml:"poll_interval"`
-	NotificationService string        `yaml:"notification_service"`
-	Ntfy                NtfyConfig    `yaml:"ntfy"`
+		PollInterval        time.Duration   `yaml:"poll_interval"`
+		Shoutrrr            ShoutrrrConfig  `yaml:"shoutrrr"`
 	Web                 WebConfig     `yaml:"web"`
 	// Shoutrrr notification endpoints
 	Shoutrrr            ShoutrrrConfig `yaml:"shoutrrr"`
@@ -21,11 +20,9 @@ type ShoutrrrConfig struct {
 	URLs []string `yaml:"urls"`
 }
 
-type NtfyConfig struct {
-	URL   string `yaml:"url"`
-	Topic string `yaml:"topic"`
-	Token string `yaml:"token"`
-}
+// NtfyConfig is deprecated; use Shoutrrr URLs instead
+// kept for backward compatibility but ignored
+type NtfyConfig struct {}
 
 type WebConfig struct {
 	Listen string `yaml:"listen"`
