@@ -5,6 +5,9 @@ import (
        "fmt"
        "os"
        "os/signal"
+       "os/exec"
+       "regexp"
+       "strings"
        "sync"
        "syscall"
        "time"
@@ -14,6 +17,16 @@ import (
        "github.com/yourusername/task-herald/internal/web"
        "github.com/nicholas-fedor/shoutrrr"
 )
+
+// contains checks if a slice contains a string
+func contains(slice []string, s string) bool {
+       for _, v := range slice {
+              if v == s {
+                     return true
+              }
+       }
+       return false
+}
 
 func Run() error {
        fmt.Println("Taskwarrior Notifications service starting...")
@@ -48,8 +61,29 @@ func Run() error {
 
        // Update tasks on poll
        go func() {
-              for t := range taskCh {
-                     mu.Lock()
+                       for t := range taskCh {
+                                    // Process inline "+tag" directives: add tag and clean description
+                                    for i, task := range t {
+                                             re := regexp.MustCompile(`\+([A-Za-z0-9_-]+)`)  // match literal '+tag'
+                                           matches := re.FindAllStringSubmatch(task.Description, -1)
+                                           if len(matches) > 0 {
+                                                  // Add each tag
+                                                  for _, m := range matches {
+                                                         tag := m[1]
+                                                         exec.Command("task", task.UUID, "modify", "+"+tag).Run()
+                                                         // locally update tags
+                                                         if !contains(t[i].Tags, tag) {
+                                                                t[i].Tags = append(t[i].Tags, tag)
+                                                         }
+                                                  }
+                                                  // Clean description
+                                                  newDesc := re.ReplaceAllString(task.Description, "")
+                                                  newDesc = strings.TrimSpace(newDesc)
+                                                  exec.Command("task", task.UUID, "modify", "description:"+newDesc).Run()
+                                                  t[i].Description = newDesc
+                                           }
+                                    }
+                                    mu.Lock()
                      tasks = t
                      mu.Unlock()
                    fmt.Printf("Polled %d tasks with notification_date set\n", len(t))

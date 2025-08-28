@@ -224,7 +224,14 @@
   {/if}
 
   {#if showDatePicker}
-    <div class="modal-backdrop" on:click={cancelDatePicker}></div>
+    <!-- Backdrop closes modal; use button for accessibility -->
+    <button
+      type="button"
+      role="button"
+      class="modal-backdrop"
+      on:click={cancelDatePicker}
+      aria-label="Close date picker"
+    ></button>
   <div class="modal" bind:this={modalElement}>
       <!-- Render flatpickr calendar inline inside modal -->
       <input
@@ -250,7 +257,17 @@
 
 <style>
   .modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 10;
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.3);
+    z-index: 10;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: default;
   }
   .modal { position: fixed; top:50%; left:50%; transform: translate(-50%,-50%); background: #fff; color: #222; padding:1em; border-radius:4px; z-index:11; width:300px; }
   .modal-actions { display:flex; justify-content:flex-end; gap:0.5em; margin-top:1em; }
