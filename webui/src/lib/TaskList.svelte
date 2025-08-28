@@ -3,10 +3,13 @@
   import { config } from '$lib/config';
   import { derived } from 'svelte/store';
   import { datepicker } from '$lib/actions/datepicker';
+  import { createEventDispatcher } from 'svelte';
   // Pull in flatpickr styles for calendar popover
   import 'flatpickr/dist/flatpickr.min.css';
 
   export let tasks: Array<Record<string, any>> = [];
+  // Event dispatcher to notify parent of updates
+  const dispatcher = createEventDispatcher();
 
   // Wait for config to load before rendering
   let currentConfig = { columns: [], sort: { key: '', direction: 'asc' } };
@@ -132,6 +135,10 @@
   let pickerKey = '';
   let pickerValue = '';
 
+  // Reference to the hidden date input and modal container for appendTo
+  let pickerInput: HTMLInputElement;
+  let modalElement: HTMLDivElement;
+
   function openDatePicker(task: Record<string, any>, key: string) {
     showDatePicker = true;
     pickerTask = task;
@@ -144,17 +151,22 @@
     pickerTask = null;
   }
   async function confirmDatePicker() {
-    if (!pickerTask) return;
-    const body: any = { uuid: pickerTask.uuid };
-    body[pickerKey] = pickerValue;
-    await fetch('/api/tasks/set-notification-date', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    pickerTask[pickerKey] = pickerValue.replace('T', ' ');
-    showDatePicker = false;
+  if (!pickerTask) return;
+  const body: any = { uuid: pickerTask.uuid };
+  body[pickerKey] = pickerValue;
+  const res = await fetch('/api/tasks/modify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (res.ok) {
+    const updatedTasks: any[] = await res.json();
+    tasks = updatedTasks;
+    // notify parent to refresh tasks
+    dispatcher('refresh', updatedTasks);
   }
+  showDatePicker = false;
+}
   // Clear a date field immediately
   async function clearDateField(task: Record<string, any>, key: string) {
     // set value to empty and submit
@@ -212,26 +224,27 @@
   {/if}
 
   {#if showDatePicker}
-  <div class="modal-backdrop" on:click={confirmDatePicker}></div>
-    <div class="modal">
-      <!-- Invisible input to auto-open flatpickr calendar -->
+    <div class="modal-backdrop" on:click={cancelDatePicker}></div>
+  <div class="modal" bind:this={modalElement}>
+      <!-- Render flatpickr calendar inline inside modal -->
       <input
+        bind:this={pickerInput}
         type="text"
         bind:value={pickerValue}
         use:datepicker={{
           enableTime: true,
           dateFormat: 'Y-m-d H:i',
           defaultDate: pickerValue,
-          autoOpen: true,
-          closeOnSelect: true,
-          clickOpens: true,
-          onChange: (selectedDates, dateStr) => {
-            pickerValue = dateStr;
-            confirmDatePicker();
-          }
+          inline: true,
+          appendTo: modalElement,
+          onChange: (_dates, dateStr) => { pickerValue = dateStr; }
         }}
         style="position:absolute; opacity:0; width:1px; height:1px; border:none; padding:0; margin:0;"
       />
+      <div class="modal-actions">
+        <button type="button" on:click={confirmDatePicker}>OK</button>
+        <button type="button" on:click={cancelDatePicker}>Cancel</button>
+      </div>
     </div>
   {/if}
 
@@ -239,10 +252,7 @@
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 10;
   }
-  .modal {
-    position: fixed; top:50%; left:50%; transform: translate(-50%,-50%);
-    background: #fff; color: #222; padding:1em; border-radius:4px; z-index:11; width:300px;
-  }
+  .modal { position: fixed; top:50%; left:50%; transform: translate(-50%,-50%); background: #fff; color: #222; padding:1em; border-radius:4px; z-index:11; width:300px; }
   .modal-actions { display:flex; justify-content:flex-end; gap:0.5em; margin-top:1em; }
   .date-cell { display: flex; align-items: center; justify-content: space-between; width: 100%; }
   .clear-btn { background: none; border: none; padding: 0; font-size: 0.9em; cursor: pointer; color: #888; }

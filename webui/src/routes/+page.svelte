@@ -5,6 +5,10 @@ import { config } from '$lib/config';
 import { get } from 'svelte/store';
 let tasks = [];
 let loading = true;
+// Handle refresh event from TaskList to update tasks immediately
+function handleRefresh(event: CustomEvent<any>) {
+	tasks = event.detail;
+}
 onMount(async () => {
 	loading = true;
 	const res = await fetch('/api/tasks/json');
@@ -28,5 +32,5 @@ onMount(async () => {
 {#if loading}
 	<p>Loading...</p>
 {:else}
-	<TaskList {tasks} />
+	<TaskList {tasks} on:refresh={handleRefresh} />
 {/if}

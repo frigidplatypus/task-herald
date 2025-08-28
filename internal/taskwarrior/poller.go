@@ -29,7 +29,14 @@ type Task struct {
 func ExportIncompleteTasks() ([]Task, error) {
 	// Only status:pending tasks (active/incomplete)
 		// Export all fields including computed urgency
-		cmd := exec.Command("task", "status:pending", "export", "rc.json.array=on", "rc.json.allfields=yes")
+			   // Export tasks with either pending or waiting status
+			   cmd := exec.Command(
+				   "task",
+				   "(status:pending or status:waiting)",
+				   "export",
+				   "rc.json.array=on",
+				   "rc.json.allfields=yes",
+			   )
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -83,10 +90,6 @@ func ExportIncompleteTasks() ([]Task, error) {
 				}
 			}
 		}
-	}
-	// Debug: log urgency values fetched
-	for _, t := range tasks {
-		fmt.Printf("[DEBUG] Task %s urgency=%f\n", t.UUID, t.Urgency)
 	}
 	return tasks, nil
 }
