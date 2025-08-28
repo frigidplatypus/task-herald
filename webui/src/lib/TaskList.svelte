@@ -2,6 +2,9 @@
 
   import { config } from '$lib/config';
   import { derived } from 'svelte/store';
+  import { datepicker } from '$lib/actions/datepicker';
+  // Pull in flatpickr styles for calendar popover
+  import 'flatpickr/dist/flatpickr.min.css';
 
   export let tasks: Array<Record<string, any>> = [];
 
@@ -13,22 +16,31 @@
     loading = state.loading;
   });
 
-  // Inline edit state
-  let editingId: number | null = null;
-  let editValue: string = '';
-
   // Format date strings for display
   function formatDate(dateStr: string | undefined): string {
     if (!dateStr) return '';
-    const d = dateStr.includes('T')
-      ? new Date(dateStr)
-      : new Date(dateStr.replace(' ', 'T'));
+    let d: Date;
+    // Handle TaskWarrior UTC format: YYYYMMDDTHHMMSSZ
+    const m = dateStr.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/);
+    if (m) {
+      const [ , y, mo, da, h, mi, s ] = m;
+      d = new Date(Date.UTC(+y, +mo - 1, +da, +h, +mi, +s));
+    } else if (dateStr.includes('T')) {
+      d = new Date(dateStr);
+    } else {
+      d = new Date(dateStr.replace(' ', 'T'));
+    }
     if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   }
 
-  // Render a cell based on key
+  // Render a cell based on key, formatting dates and special types
   function renderCell(task: Record<string, any>, key: string): string {
+    // Date fields: format using localized date/time
+    const dateKeys = ['due', 'modified', 'start', 'end', 'wait', 'entry'];
+    if (dateKeys.includes(key)) {
+      return formatDate(task[key]);
+    }
     if (key === 'notification_date') {
       return formatDate(task.notification_date);
     }
@@ -40,19 +52,34 @@
     if (key === 'tags' && Array.isArray(task.tags)) {
       return task.tags.join(', ');
     }
+    // Fallback to raw value
     return task[key] ?? '';
   }
 
 
-  // Apply sorting based on configuration
+  // Apply sorting based on configuration, with date fields compared as dates
   let displayedTasks: typeof tasks = tasks;
   $: {
     const key = currentConfig?.sort?.key;
     const dir = currentConfig?.sort?.direction;
     if (key) {
+      const dateKeys = ['due', 'modified', 'start', 'end', 'wait', 'entry', 'notification_date'];
       displayedTasks = [...tasks].sort((a, b) => {
-        const v1 = a[key] ?? '';
-        const v2 = b[key] ?? '';
+        let v1 = a[key] ?? '';
+        let v2 = b[key] ?? '';
+        // Compare date fields by timestamp
+        if (dateKeys.includes(key)) {
+          const d1 = new Date(v1 as string);
+          const d2 = new Date(v2 as string);
+          const t1 = isNaN(d1.getTime()) ? 0 : d1.getTime();
+          const t2 = isNaN(d2.getTime()) ? 0 : d2.getTime();
+          if (t1 < t2) return dir === 'asc' ? -1 : 1;
+          if (t1 > t2) return dir === 'asc' ? 1 : -1;
+          return 0;
+        }
+        // Fallback to string comparison
+        v1 = String(v1);
+        v2 = String(v2);
         if (v1 < v2) return dir === 'asc' ? -1 : 1;
         if (v1 > v2) return dir === 'asc' ? 1 : -1;
         return 0;
@@ -72,23 +99,69 @@
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  // Inline edit of notification_date
-  function startEdit(task) {
+
+  // Inline edit of any date field
+  function startEdit(task: Record<string, any>, key: string) {
     editingId = task.id;
-    editValue = toDatetimeLocal(task.notification_date);
+    editingKey = key;
+    editValue = toDatetimeLocal(task[key]);
+  editDate = editValue ? new Date(editValue) : null;
   }
 
-  async function saveEdit(task) {
-    const body = { uuid: task.uuid, notification_date: editValue };
-    const res = await fetch('/api/tasks/set-notification-date', {
+  async function saveEdit(task: Record<string, any>) {
+    if (!editingKey) return;
+    // Send key and value to backend
+    const body: any = { uuid: task.uuid };
+    body[editingKey] = editValue;
+     const res = await fetch('/api/tasks/set-notification-date', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify(body)
+     });
+     if (res.ok) {
+      task[editingKey] = editValue ? editValue.replace('T', ' ') : '';
+     }
+    editingId = null;
+    editingKey = null;
+   }
+  // Editable date fields
+  const dateFields = ['notification_date', 'due', 'start', 'wait'];
+  // Popover modal for date fields
+  let showDatePicker = false;
+  let pickerTask: Record<string, any> | null = null;
+  let pickerKey = '';
+  let pickerValue = '';
+
+  function openDatePicker(task: Record<string, any>, key: string) {
+    showDatePicker = true;
+    pickerTask = task;
+    pickerKey = key;
+    const raw = task[key];
+    pickerValue = raw ? raw.replace(' ', 'T') : '';
+  }
+  function cancelDatePicker() {
+    showDatePicker = false;
+    pickerTask = null;
+  }
+  async function confirmDatePicker() {
+    if (!pickerTask) return;
+    const body: any = { uuid: pickerTask.uuid };
+    body[pickerKey] = pickerValue;
+    await fetch('/api/tasks/set-notification-date', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (res.ok) {
-      task.notification_date = editValue ? editValue.replace('T', ' ') : '';
-    }
-    editingId = null;
+    pickerTask[pickerKey] = pickerValue.replace('T', ' ');
+    showDatePicker = false;
+  }
+  // Clear a date field immediately
+  async function clearDateField(task: Record<string, any>, key: string) {
+    // set value to empty and submit
+    pickerTask = task;
+    pickerKey = key;
+    pickerValue = '';
+    await confirmDatePicker();
   }
 </script>
 
@@ -107,27 +180,72 @@
         {#each displayedTasks as task}
           <tr>
             {#each currentConfig.columns as key}
-              <td>
-                {#if key === 'notification_date'}
-                  {#if editingId === task.id}
-                    <input type="datetime-local" bind:value={editValue}
-                      on:blur={() => saveEdit(task)}
-                      on:keydown={(e) => e.key === 'Enter' && saveEdit(task)}
-                      autofocus
-                    />
-                    <button type="button" on:click={() => { editValue = ''; saveEdit(task); }} style="margin-left:0.5em">Clear</button>
-                  {:else}
-                    <span style="cursor:pointer" on:click={() => startEdit(task)}>
-                      {formatDate(task.notification_date)}
-                    </span>
-                  {/if}
-                {:else}
-                  {renderCell(task, key)}
-                {/if}
-              </td>
-            {/each}
+               <td>
+                {#if dateFields.includes(key)}
+     <div class="date-cell">
+       <!-- date display button -->
+       <button
+         class="open-btn"
+         type="button"
+         aria-label="Set date"
+         on:click={() => openDatePicker(task, key)}
+       >{renderCell(task, key) || '—'}</button>
+       <!-- clear only if there's a value -->
+       {#if task[key]}
+         <button
+           class="clear-btn"
+           type="button"
+           on:click|stopPropagation={() => clearDateField(task, key)}
+           aria-label="Clear date"
+         >×</button>
+       {/if}
+     </div>
+   {:else}
+     {renderCell(task, key)}
+   {/if}
+               </td>
+             {/each}
           </tr>
-        {/each}
+      {/each}
       </tbody>
     </table>
   {/if}
+
+  {#if showDatePicker}
+  <div class="modal-backdrop" on:click={confirmDatePicker}></div>
+    <div class="modal">
+      <!-- Invisible input to auto-open flatpickr calendar -->
+      <input
+        type="text"
+        bind:value={pickerValue}
+        use:datepicker={{
+          enableTime: true,
+          dateFormat: 'Y-m-d H:i',
+          defaultDate: pickerValue,
+          autoOpen: true,
+          closeOnSelect: true,
+          clickOpens: true,
+          onChange: (selectedDates, dateStr) => {
+            pickerValue = dateStr;
+            confirmDatePicker();
+          }
+        }}
+        style="position:absolute; opacity:0; width:1px; height:1px; border:none; padding:0; margin:0;"
+      />
+    </div>
+  {/if}
+
+<style>
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 10;
+  }
+  .modal {
+    position: fixed; top:50%; left:50%; transform: translate(-50%,-50%);
+    background: #fff; color: #222; padding:1em; border-radius:4px; z-index:11; width:300px;
+  }
+  .modal-actions { display:flex; justify-content:flex-end; gap:0.5em; margin-top:1em; }
+  .date-cell { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+  .clear-btn { background: none; border: none; padding: 0; font-size: 0.9em; cursor: pointer; color: #888; }
+  .clear-btn:hover { color: #f00; }
+  .open-btn { background: none; border: none; padding: 0; color: inherit; cursor: pointer; }
+</style>

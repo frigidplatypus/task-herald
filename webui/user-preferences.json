@@ -3,7 +3,9 @@
     "columnOrder": [
       "urgency",
       "description",
+      "due",
       "notification_date",
+      "start",
       "tags",
       "priority",
       "project"

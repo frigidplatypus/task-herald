@@ -12,7 +12,13 @@ type Task struct {
 	ID               int      `json:"id"`
 	UUID             string   `json:"uuid"`
 	Description      string   `json:"description"`
+	Due              string   `json:"due"`
 	NotificationDate string   `json:"notification_date"`
+	Modified         string   `json:"modified"`
+	Start            string   `json:"start"`
+	End              string   `json:"end"`
+	Wait             string   `json:"wait"`
+	Entry            string   `json:"entry"`
 	Tags             []string `json:"tags"`
 	Priority         string   `json:"priority"`
 	Project          string   `json:"project"`

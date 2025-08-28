@@ -11,23 +11,33 @@
   // Available TaskWarrior columns fetched from API
   let columns: { key: string; label: string }[] = [];
 
-
   import { get } from 'svelte/store';
 
   // Fetch columns from backend and initialize modal state from config
   onMount(async () => {
     try {
+      // Base columns from tasks
       const res = await fetch('/api/tasks/json');
       const tasks = await res.json();
       if (Array.isArray(tasks) && tasks.length > 0) {
         columns = Object.keys(tasks[0]).map((k) => ({ key: k, label: k }));
-        // Include computed urgency field if missing
         if (!columns.find((c) => c.key === 'urgency')) {
           columns.push({ key: 'urgency', label: 'Urgency' });
         }
       }
+      // Fetch user-defined attributes (UDAs)
+      const udaRes = await fetch('/api/udas');
+      if (udaRes.ok) {
+        const udas: Array<{ key: string; label: string }> = await udaRes.json();
+        // Append UDA columns
+        udas.forEach((u) => {
+          if (!columns.find((c) => c.key === u.key)) {
+            columns.push({ key: u.key, label: u.label });
+          }
+        });
+      }
     } catch (err) {
-      console.error('Failed to load columns', err);
+      console.error('Failed to load columns or UDAs', err);
     }
     // Initialize drag items and sort from config
     const currentConfig = get(config);
