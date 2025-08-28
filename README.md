@@ -10,7 +10,35 @@ This project provides a web interface and notification service for Taskwarrior t
 - Designed to run as a user-level systemd service (Linux only)
 
 ## Configuration
-Edit `config.yaml` to set polling interval, ntfy.sh settings, and web server options. Example:
+Edit `config.yaml` to set polling interval, notification service, and web server options. Supported services:
+
+- `ntfy` (built-in ntfy.sh support)
+- `shoutrrr` (any endpoint supported by the Shoutrrr library)
+
+Example for ntfy.sh:
+```yaml
+poll_interval: 30s
+notification_service: ntfy
+ntfy:
+	url: "https://ntfy.sh"
+	topic: "task-herald"
+	token: ""
+web:
+	listen: "127.0.0.1:8080"
+	auth: false
+```
+Example for Shoutrrr:
+```yaml
+poll_interval: 30s
+notification_service: shoutrrr
+shoutrrr:
+	urls:
+		- "ntfy://task-herald?token=YOUR_TOKEN"
+		- "pushover://USER:API_TOKEN"
+web:
+	listen: "127.0.0.1:8080"
+	auth: false
+```
 
 ```yaml
 poll_interval: 30s

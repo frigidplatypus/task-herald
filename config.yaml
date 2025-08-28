@@ -5,6 +5,9 @@ ntfy:
   url: "https://ntfy.sh"
   topic: "task-herald"
   token: ""
+shoutrrr:
+  # List of Shoutrrr notification URLs, e.g. "ntfy://topic?token=..."
+  urls: []
 web:
   listen: "127.0.0.1:8080"
   auth: false

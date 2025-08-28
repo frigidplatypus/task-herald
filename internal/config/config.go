@@ -12,6 +12,13 @@ type Config struct {
 	NotificationService string        `yaml:"notification_service"`
 	Ntfy                NtfyConfig    `yaml:"ntfy"`
 	Web                 WebConfig     `yaml:"web"`
+	// Shoutrrr notification endpoints
+	Shoutrrr            ShoutrrrConfig `yaml:"shoutrrr"`
+}
+
+// ShoutrrrConfig holds Shoutrrr notification URLs
+type ShoutrrrConfig struct {
+	URLs []string `yaml:"urls"`
 }
 
 type NtfyConfig struct {
