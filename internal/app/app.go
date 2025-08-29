@@ -29,10 +29,11 @@ func Run() error {
               tasks []taskwarrior.Task
        )
 
-       // Set up polling
+       // Set up polling and syncing
        taskCh := make(chan []taskwarrior.Task)
        stopCh := make(chan struct{})
        go taskwarrior.Poller(cfg.PollInterval, taskCh, stopCh)
+       go taskwarrior.SyncTaskwarrior(stopCh)
 
        // Update tasks on poll
        go func() {

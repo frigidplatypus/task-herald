@@ -2,13 +2,13 @@
   inputs =
     let
       version = "1.8.1";
-system = "x86_64-linux";
-devenv_root = "/home/justin/development/go/task-herald";
+system = "aarch64-darwin";
+devenv_root = "/Users/jmartin/Development/go/taskwarrior-notifications";
 devenv_dotfile = ./.devenv;
 devenv_dotfile_string = ".devenv";
 container_name = null;
-devenv_tmpdir = "/run/user/1000";
-devenv_runtime = "/run/user/1000/devenv-08f7053";
+devenv_tmpdir = "/var/folders/91/0vk3xlr161v6blz8ngshbr1m0000gr/T/";
+devenv_runtime = "/var/folders/91/0vk3xlr161v6blz8ngshbr1m0000gr/T/devenv-d46ec72";
 devenv_istesting = false;
 devenv_direnvrc_latest_version = 1;
 
@@ -25,13 +25,13 @@ devenv_direnvrc_latest_version = 1;
       outputs = { nixpkgs, ... }@inputs:
         let
           version = "1.8.1";
-system = "x86_64-linux";
-devenv_root = "/home/justin/development/go/task-herald";
+system = "aarch64-darwin";
+devenv_root = "/Users/jmartin/Development/go/taskwarrior-notifications";
 devenv_dotfile = ./.devenv;
 devenv_dotfile_string = ".devenv";
 container_name = null;
-devenv_tmpdir = "/run/user/1000";
-devenv_runtime = "/run/user/1000/devenv-08f7053";
+devenv_tmpdir = "/var/folders/91/0vk3xlr161v6blz8ngshbr1m0000gr/T/";
+devenv_runtime = "/var/folders/91/0vk3xlr161v6blz8ngshbr1m0000gr/T/devenv-d46ec72";
 devenv_istesting = false;
 devenv_direnvrc_latest_version = 1;
 

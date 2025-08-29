@@ -125,11 +125,11 @@ func ExportIncompleteTasks() ([]Task, error) {
               // Add tags and update description in Taskwarrior
               for tag := range tagsToAdd {
                      config.Log(config.INFO, "Adding tag '+%s' to task %s", tag, task.UUID)
-                     exec.Command("task", task.UUID, "modify", "+"+tag).Run()
+                     ModifyTask(task.UUID, "+"+tag)
               }
               if newDesc != task.Description {
                      config.Log(config.VERBOSE, "Updating description for task %s: \"%s\" -> \"%s\"", task.UUID, task.Description, newDesc)
-                     exec.Command("task", task.UUID, "modify", "description:"+newDesc).Run()
+                     ModifyTask(task.UUID, "description:"+newDesc)
               }
        }
        return allTasks, nil

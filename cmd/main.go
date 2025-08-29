@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/yourusername/task-herald/internal/app"
+	"github.com/frigidplatypus/task-herald/internal/app"
 )
 
 func main() {
