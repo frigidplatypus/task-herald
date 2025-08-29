@@ -7,3 +7,4 @@ task-herald
 
 # Ignore devenv state but keep direnv working
 .devenv/
+.devenv.flake.nix
