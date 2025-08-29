@@ -1,4 +1,7 @@
+
 package taskwarrior
+
+
 
 import (
 	"bytes"
@@ -31,9 +34,7 @@ func ExportIncompleteTasks() ([]Task, error) {
 	pendingCmd.Stderr = &pendingOut
 	err := pendingCmd.Run()
 	pendingRaw := pendingOut.String()
-	fmt.Printf("[DEBUG] Ran: %v\n", pendingCmd.Args)
-	fmt.Printf("[DEBUG] Raw Output:\n%s\n", pendingRaw)
-	fmt.Printf("[DEBUG] Error: %v\n", err)
+	// No debug logging of task export
 	if err != nil {
 		return nil, err
 	}
@@ -65,9 +66,7 @@ func ExportIncompleteTasks() ([]Task, error) {
 	waitingCmd.Stderr = &waitingOut
 	err = waitingCmd.Run()
 	waitingRaw := waitingOut.String()
-	fmt.Printf("[DEBUG] Ran: %v\n", waitingCmd.Args)
-	fmt.Printf("[DEBUG] Raw Output:\n%s\n", waitingRaw)
-	fmt.Printf("[DEBUG] Error: %v\n", err)
+	// No debug logging of task export
 	if err != nil {
 		return nil, err
 	}
@@ -94,14 +93,10 @@ func ExportIncompleteTasks() ([]Task, error) {
 
 	// Combine both
 	allTasks := append(pendingTasks, waitingTasks...)
-	fmt.Printf("[DEBUG] Parsed %d pending, %d waiting, %d total tasks\n", len(pendingTasks), len(waitingTasks), len(allTasks))
+	// No debug logging of parsed task counts
 
 	// Log all parsed notification dates
-	for _, task := range allTasks {
-		if task.NotificationDate != "" {
-			config.Log(config.INFO, "Task ID=%d, UUID=%s, NotificationDate=%s", task.ID, task.UUID, task.NotificationDate)
-		}
-	}
+	// No longer logging all tasks with notification dates to reduce log noise
 
 	// After combining all tasks, process +tag in description
 	tagPattern := regexp.MustCompile(`\B\+([a-zA-Z0-9_\-]+)`)
