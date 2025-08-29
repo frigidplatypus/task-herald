@@ -2,3 +2,6 @@
 .pre-commit-config.yaml
 
 task-herald
+
+# Ignore devenv state but keep direnv working
+.devenv/
