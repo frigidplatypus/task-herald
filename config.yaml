@@ -1,3 +1,5 @@
+# Logging level: error, warn, info, debug, verbose
+log_level: verbose
 # Taskwarrior Notifications Config
 poll_interval: 30s  # How often to poll Taskwarrior (e.g., 30s, 1m)
 notification_service: ntfy
@@ -8,3 +10,4 @@ ntfy:
 web:
   listen: "127.0.0.1:8080"
   auth: false
+

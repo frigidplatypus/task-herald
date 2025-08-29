@@ -12,6 +12,7 @@ type Config struct {
 	NotificationService string        `yaml:"notification_service"`
 	Ntfy                NtfyConfig    `yaml:"ntfy"`
 	Web                 WebConfig     `yaml:"web"`
+	LogLevel            string        `yaml:"log_level"`
 }
 
 type NtfyConfig struct {

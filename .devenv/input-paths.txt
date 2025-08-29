@@ -1,0 +1,5 @@
+/home/justin/development/go/task-herald/.devenv/flake.json
+/home/justin/development/go/task-herald/.devenv.flake.nix
+/home/justin/development/go/task-herald/devenv.lock
+/home/justin/development/go/task-herald/devenv.nix
+/home/justin/development/go/task-herald/devenv.yaml
