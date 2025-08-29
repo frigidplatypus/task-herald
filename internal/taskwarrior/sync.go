@@ -26,16 +26,16 @@ func SyncTaskwarrior(stop <-chan struct{}) {
 }
 
 func syncOnce() {
-       config.Log(config.INFO, "Running task sync...")
-       cmd := exec.Command("task", "sync")
-       output, err := cmd.CombinedOutput()
-       if err != nil {
-	       config.Log(config.ERROR, "task sync failed: %v\nOutput: %s", err, string(output))
-	       return
-       }
-       if !strings.Contains(string(output), "Sync completed") && !strings.Contains(string(output), "synchronized") && !strings.Contains(string(output), "Syncing with sync server") {
-	       config.Log(config.WARN, "task sync: command ran but did not confirm sync: %s", string(output))
-	       return
-       }
-       config.Log(config.INFO, "task sync succeeded: %s", string(output))
+	config.Log(config.INFO, "Running task sync...")
+	cmd := exec.Command("task", "sync")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		config.Log(config.ERROR, "task sync failed: %v\nOutput: %s", err, string(output))
+		return
+	}
+	if !strings.Contains(string(output), "Sync completed") && !strings.Contains(string(output), "synchronized") && !strings.Contains(string(output), "Syncing with sync server") {
+		config.Log(config.WARN, "task sync: command ran but did not confirm sync: %s", string(output))
+		return
+	}
+	config.Log(config.INFO, "task sync succeeded: %s", string(output))
 }

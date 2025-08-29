@@ -1,7 +1,4 @@
-
 package taskwarrior
-
-
 
 import (
 	"bytes"

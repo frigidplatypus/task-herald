@@ -29,12 +29,12 @@ func (n *Notifier) Send(ctx context.Context, message string) error {
 		return err
 	}
 
-       errs := sender.Send(message, nil)
-       if len(errs) > 0 && errs[0] != nil {
-	       if n.logger != nil {
-		       n.logger.Printf("[notify] failed to send notification: %v", errs)
-	       }
-	       return errs[0]
-       }
-       return nil
+	errs := sender.Send(message, nil)
+	if len(errs) > 0 && errs[0] != nil {
+		if n.logger != nil {
+			n.logger.Printf("[notify] failed to send notification: %v", errs)
+		}
+		return errs[0]
+	}
+	return nil
 }

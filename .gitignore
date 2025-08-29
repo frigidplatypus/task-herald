@@ -8,3 +8,9 @@ task-herald
 # Ignore devenv state but keep direnv working
 .devenv/
 .devenv.flake.nix
+/.env
+.env
+
+# Nix build results
+result
+result-*

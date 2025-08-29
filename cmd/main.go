@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 
@@ -8,7 +9,10 @@ import (
 )
 
 func main() {
-	if err := app.Run(); err != nil {
+	cfgPath := flag.String("config", "", "Path to config.yaml (overrides env/ defaults)")
+	flag.Parse()
+
+	if err := app.Run(*cfgPath); err != nil {
 		log.Println("Fatal error:", err)
 		os.Exit(1)
 	}

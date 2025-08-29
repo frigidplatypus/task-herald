@@ -19,6 +19,9 @@ web:
 # Shoutrrr URL for notifications (see https://containrrr.dev/shoutrrr/v0.8/services/)
 shoutrrr_url: "ntfy://task-herald@ntfy.sh"
 
+# Alternative: read shoutrrr URL from a file (useful for credentials)
+# shoutrrr_url_file: "/path/to/shoutrrr-url.txt"
+
 # Custom notification message (Go template, see TaskInfo struct for fields)
 # notification_message: "🔔 {{.Description}} (Due: {{.Due}})"
 # notification_message: ""
