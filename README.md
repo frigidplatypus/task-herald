@@ -42,21 +42,21 @@ Import the home-manager module and configure:
     settings = {
       # Required: notification service URL
       shoutrrr_url = "ntfy://task-herald@ntfy.sh";
-      
+
       # Alternative: read URL from file (more secure for credentials)
       # shoutrrr_url_file = "/run/secrets/shoutrrr-url";
-      
+
       # Optional settings with defaults
       poll_interval = "30s";
       sync_interval = "5m";
       log_level = "info";
-      
+
       # Web interface settings
       web = {
         listen = "127.0.0.1:8080";
         auth = false;
       };
-      
+
       # Custom notification message template
       notification_message = "🔔 {{.Description}} (Due: {{.Due}})";
     };
@@ -92,7 +92,7 @@ Import the home-manager module and configure:
 # How often to poll Taskwarrior for tasks
 poll_interval: 30s
 
-# How often to run 'task sync' 
+# How often to run 'task sync'
 sync_interval: 5m
 
 # Logging level: error, warn, info, debug, verbose
@@ -172,7 +172,7 @@ task-herald --config /path/to/config.yaml
 
 Configuration precedence (highest to lowest):
 1. `--config` CLI flag
-2. `TASK_HERALD_CONFIG` environment variable  
+2. `TASK_HERALD_CONFIG` environment variable
 3. `./config.yaml` (current directory)
 4. `/var/lib/task-herald/config.yaml` (system location)
 
@@ -194,11 +194,3 @@ cd task-herald
 go mod download
 go run ./cmd --config config.yaml
 ```
-
-## Roadmap
-
-- [ ] Multiple notification service support per task
-- [ ] Task filtering and advanced scheduling
-- [ ] Enhanced web UI with task management
-- [ ] Integration with more task management systems
-- [ ] Mobile app notifications
