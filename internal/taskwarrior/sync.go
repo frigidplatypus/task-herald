@@ -3,13 +3,17 @@ package taskwarrior
 import (
 	"os/exec"
 	"strings"
+	"task-herald/internal/config"
 	"time"
-	"github.com/yourusername/task-herald/internal/config"
 )
 
 // SyncTaskwarrior runs 'task sync' every 5 minutes in a background goroutine.
 func SyncTaskwarrior(stop <-chan struct{}) {
-	ticker := time.NewTicker(5 * time.Minute)
+	interval := config.Get().SyncInterval
+	if interval == 0 {
+		interval = 5 * time.Minute
+	}
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {

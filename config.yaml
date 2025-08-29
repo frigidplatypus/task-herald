@@ -2,12 +2,13 @@
 log_level: verbose
 # Taskwarrior Notifications Config
 poll_interval: 30s  # How often to poll Taskwarrior (e.g., 30s, 1m)
-notification_service: ntfy
-ntfy:
-  url: "https://ntfy.sh"
-  topic: "task-herald"
-  token: ""
+
 web:
   listen: "127.0.0.1:8080"
   auth: false
+
+# Shoutrrr integration
+shoutrrr_url: "ntfy://ntfy.sh@QWvwi17Z"  # e.g. ntfy://topic@host or discord://token@channel
+# notification_message: "Custom: {{.Description}} due {{.Due}}"
+# notification_message: ""
 

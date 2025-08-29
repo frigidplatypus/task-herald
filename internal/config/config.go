@@ -1,18 +1,22 @@
 package config
 
 import (
-	"gopkg.in/yaml.v3"
 	"os"
 	"sync"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
 	PollInterval        time.Duration `yaml:"poll_interval"`
+	SyncInterval        time.Duration `yaml:"sync_interval"`
 	NotificationService string        `yaml:"notification_service"`
 	Ntfy                NtfyConfig    `yaml:"ntfy"`
 	Web                 WebConfig     `yaml:"web"`
 	LogLevel            string        `yaml:"log_level"`
+	ShoutrrrURL         string        `yaml:"shoutrrr_url"`
+	NotificationMessage string        `yaml:"notification_message"`
 }
 
 type NtfyConfig struct {

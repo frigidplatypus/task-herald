@@ -1,0 +1,24 @@
+# Example config for task-herald
+
+# Logging level: error, warn, info, debug, verbose
+log_level: verbose
+
+
+# How often to poll Taskwarrior for tasks (e.g., 30s, 1m)
+poll_interval: 30s
+
+# How often to run 'task sync' (e.g., 5m, 10m)
+sync_interval: 5m
+
+
+# Web server settings
+web:
+  listen: "127.0.0.1:8080"       # Address and port to listen on
+  auth: false                    # Enable authentication (true/false)
+
+# Shoutrrr URL for notifications (see https://containrrr.dev/shoutrrr/v0.8/services/)
+shoutrrr_url: "ntfy://task-herald@ntfy.sh"
+
+# Custom notification message (Go template, see TaskInfo struct for fields)
+# notification_message: "🔔 {{.Description}} (Due: {{.Due}})"
+# notification_message: ""

@@ -4,7 +4,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/yourusername/task-herald/internal/config"
+	"task-herald/internal/config"
 )
 
 // ModifyTask runs a Taskwarrior modify command for a given UUID and arguments.
