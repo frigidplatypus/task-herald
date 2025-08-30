@@ -124,6 +124,7 @@
                 Restart = "always";
                 WorkingDirectory = "%h/.local/state/task-herald";
                 StateDirectory = "task-herald";
+                Environment = "PATH=${pkgs.taskwarrior}/bin:${pkgs.coreutils}/bin:/run/wrappers/bin:/usr/bin:/bin";
               };
             };
           };
