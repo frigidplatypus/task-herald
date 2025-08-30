@@ -1,14 +1,16 @@
 package web
 
 import (
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
-	"os"
+	"regexp"
+	"strings"
 	"encoding/json"
-
 	"task-herald/internal/taskwarrior"
 )
 
@@ -56,39 +58,69 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	type reqBody struct {
-		Description      string   `json:"Description"`
-		Project          string   `json:"Project"`
-		Tags             []string `json:"Tags"`
-		Due              string   `json:"Due"`
-		NotificationDate string   `json:"NotificationDate"`
-	}
-	var body reqBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-	if body.Description == "" {
-		http.Error(w, "Description is required", http.StatusBadRequest)
-		return
-	}
-	args := []string{"add", body.Description}
-	if body.Project != "" {
-		args = append(args, "project:"+body.Project)
-	}
-	if len(body.Tags) > 0 {
-		for _, tag := range body.Tags {
-			if tag != "" {
-				args = append(args, "+"+tag)
-			}
-		}
-	}
-	if body.Due != "" {
-		args = append(args, "due:"+body.Due)
-	}
-	if body.NotificationDate != "" {
-		args = append(args, "notification_date:"+body.NotificationDate)
-	}
+       var req map[string]interface{}
+       if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	       http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	       return
+       }
+       desc, ok := req["Description"].(string)
+       if !ok || desc == "" {
+	       http.Error(w, "Description is required", http.StatusBadRequest)
+	       return
+       }
+       args := []string{"add", desc}
+       // Handle tags (array or string)
+       if tags, ok := req["Tags"]; ok {
+	       switch t := tags.(type) {
+	       case []interface{}:
+		       for _, tag := range t {
+			       if tagStr, ok := tag.(string); ok && tagStr != "" {
+				       args = append(args, "+"+tagStr)
+			       }
+		       }
+	       case string:
+		       if t != "" {
+			       args = append(args, "+"+t)
+		       }
+	       }
+       }
+       // Handle annotations (array or string)
+       var annotations []string
+       if ann, ok := req["Annotations"]; ok {
+	       switch a := ann.(type) {
+	       case []interface{}:
+		       for _, v := range a {
+			       if s, ok := v.(string); ok && s != "" {
+				       annotations = append(annotations, s)
+			       }
+		       }
+	       case string:
+		       if a != "" {
+			       annotations = append(annotations, a)
+		       }
+	       }
+       }
+       // Add all other fields as key:value (skip Description, Tags, Annotations)
+       for k, v := range req {
+	       if k == "Description" || k == "Tags" || k == "Annotations" {
+		       continue
+	       }
+	       // Convert value to string
+	       var val string
+	       switch vv := v.(type) {
+	       case string:
+		       val = vv
+	       case float64:
+		       val = fmt.Sprintf("%v", vv)
+	       case bool:
+		       val = fmt.Sprintf("%v", vv)
+	       default:
+		       continue
+	       }
+	       if val != "" {
+		       args = append(args, fmt.Sprintf("%s:%s", toSnakeCase(k), val))
+	       }
+       }
        cmd := exec.Command("task", args...)
        output, err := cmd.CombinedOutput()
        if err != nil {
@@ -97,12 +129,32 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	       return
        }
        log.Printf("[api] Created new task via API: args=%v output=%s", args, string(output))
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(`{"status":"ok"}`))
+
+       // If there are annotations, get the new task's ID and add them
+       if len(annotations) > 0 {
+	       // Try to extract the new task's ID from output (e.g., "Created task 42.")
+	       id := extractTaskID(string(output))
+	       if id != "" {
+		       for _, ann := range annotations {
+			       annCmd := exec.Command("task", id, "annotate", ann)
+			       annOut, annErr := annCmd.CombinedOutput()
+			       if annErr != nil {
+				       log.Printf("[api] Failed to annotate task %s: %s", id, string(annOut))
+			       } else {
+				       log.Printf("[api] Annotated task %s: %s", id, ann)
+			       }
+		       }
+	       } else {
+		       log.Printf("[api] Could not extract task ID to annotate")
+	       }
+       }
+
+       w.Header().Set("Content-Type", "application/json")
+       w.WriteHeader(http.StatusCreated)
+       w.Write([]byte(`{"status":"ok"}`))
 }
 
-// ...existing code...
+
 // handleSetNotificationDate sets the notification_date UDA for a task by UUID using task modify.
 func (s *Server) handleSetNotificationDate(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
@@ -173,7 +225,30 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
-	tasks := s.GetTasks()
-	log.Printf("[DEBUG] handleTasks: %d tasks returned to UI", len(tasks))
-	s.tmpl.ExecuteTemplate(w, "tasks.html", tasks)
+       tasks := s.GetTasks()
+       log.Printf("[DEBUG] handleTasks: %d tasks returned to UI", len(tasks))
+       s.tmpl.ExecuteTemplate(w, "tasks.html", tasks)
 }
+
+// toSnakeCase converts CamelCase or PascalCase to snake_case
+func toSnakeCase(s string) string {
+       var out []rune
+       for i, r := range s {
+	       if i > 0 && r >= 'A' && r <= 'Z' {
+		       out = append(out, '_')
+	       }
+	       out = append(out, r)
+       }
+       return strings.ToLower(string(out))
+}
+
+// extractTaskID tries to extract the task ID from taskwarrior output
+func extractTaskID(output string) string {
+       re := regexp.MustCompile(`Created task (\d+)`)
+       match := re.FindStringSubmatch(output)
+       if len(match) > 1 {
+	       return match[1]
+       }
+       return ""
+}
+

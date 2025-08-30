@@ -2,7 +2,7 @@
 
 ### Create a Task via API
 
-You can create a new Taskwarrior task using the HTTP API:
+You can create a new Taskwarrior task using the HTTP API. The API accepts any standard Taskwarrior field, any user-defined attribute (UDA), and supports multiple tags and annotations.
 
 #### Example 1: Minimal (description only)
 
@@ -12,7 +12,7 @@ curl -X POST http://localhost:8080/api/create-task \
   -d '{"Description": "Buy groceries"}'
 ```
 
-#### Example 2: With project, tags, due date, and notification date
+#### Example 2: With project, tags, due date, notification date, and annotations
 
 ```bash
 curl -X POST http://localhost:8080/api/create-task \
@@ -22,18 +22,21 @@ curl -X POST http://localhost:8080/api/create-task \
     "Project": "work",
     "Tags": ["presentation", "urgent"],
     "Due": "2025-09-01T09:00",
-    "NotificationDate": "2025-08-31T18:00"
+    "NotificationDate": "2025-08-31T18:00",
+    "Annotations": ["First draft due soon", "Check with team"]
   }'
 ```
 
-#### Example 3: Only description and tags
+#### Example 3: With UDAs and custom fields
 
 ```bash
 curl -X POST http://localhost:8080/api/create-task \
   -H 'Content-Type: application/json' \
   -d '{
     "Description": "Read a book",
-    "Tags": ["leisure", "reading"]
+    "Tags": ["leisure", "reading"],
+    "uda_priority": "high",
+    "uda_context": "personal"
   }'
 ```
 
