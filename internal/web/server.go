@@ -89,12 +89,14 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	if body.NotificationDate != "" {
 		args = append(args, "notification_date:"+body.NotificationDate)
 	}
-	cmd := exec.Command("task", args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		http.Error(w, "Failed to create task: "+string(output), http.StatusInternalServerError)
-		return
-	}
+       cmd := exec.Command("task", args...)
+       output, err := cmd.CombinedOutput()
+       if err != nil {
+	       log.Printf("[api] Failed to create task: %s (args: %v)", string(output), args)
+	       http.Error(w, "Failed to create task: "+string(output), http.StatusInternalServerError)
+	       return
+       }
+       log.Printf("[api] Created new task via API: args=%v output=%s", args, string(output))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(`{"status":"ok"}`))

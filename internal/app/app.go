@@ -48,7 +48,10 @@ func Run(configOverride string) error {
        taskCh := make(chan []taskwarrior.Task)
        stopCh := make(chan struct{})
        go taskwarrior.Poller(cfg.PollInterval, taskCh, stopCh)
-       go taskwarrior.SyncTaskwarrior(stopCh)
+       go func() {
+	       log.Printf("[sync] Running task sync...")
+	       taskwarrior.SyncTaskwarrior(stopCh)
+       }()
 
        // Start web server in a goroutine (if enabled)
        go func() {
@@ -164,7 +167,7 @@ func Run(configOverride string) error {
 				       continue
 			       }
 			       // Log the notification time in both UTC and local
-			       fmt.Printf("[notify] Task %s will be notified at local: %s (UTC: %s)\n", task.UUID, notifyAt.In(time.Local).Format("2006-01-02 15:04:05 MST"), notifyAt.UTC().Format("2006-01-02 15:04:05 UTC"))
+			       log.Printf("[notify] Task %s will be notified at local: %s (UTC: %s)", task.UUID, notifyAt.In(time.Local).Format("2006-01-02 15:04:05 MST"), notifyAt.UTC().Format("2006-01-02 15:04:05 UTC"))
 			       // Prepare message
 			       msgTmpl := cfg.NotificationMessage
 			       info := notify.TaskInfo{
@@ -185,9 +188,9 @@ func Run(configOverride string) error {
 			       nowLocalMsg := time.Now().In(time.Local)
 			       if err == nil {
 				       notified[notifyKey] = struct{}{}
-				       fmt.Printf("[notify] Notification sent for task %s at %s\n", task.UUID, nowLocalMsg.Format("2006-01-02 15:04:05 MST"))
+				       log.Printf("[notify] Notification sent for task %s at %s", task.UUID, nowLocalMsg.Format("2006-01-02 15:04:05 MST"))
 			       } else {
-				       fmt.Printf("[notify] Failed to send notification for task %s: %v\n", task.UUID, err)
+				       log.Printf("[notify] Failed to send notification for task %s: %v", task.UUID, err)
 			       }
 		       }
 		       mu.RUnlock()
