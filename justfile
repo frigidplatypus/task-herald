@@ -7,4 +7,4 @@ build:
 # Run the Go project (builds first)
 run:
   just build
-  ./bin/task-herald
+  ./bin/task-herald --config config.yaml

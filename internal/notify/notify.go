@@ -1,40 +1,58 @@
 package notify
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"log"
-
-	shoutrrr "github.com/containrrr/shoutrrr"
+	"net/http"
+	"task-herald/internal/config"
 )
 
-// Notifier wraps shoutrrr for sending notifications
-// url: shoutrrr service URL (e.g. ntfy, discord, etc)
-// logger: optional logger for errors
-
+// Notifier sends notifications to ntfy using HTTP POST and headers for features
 type Notifier struct {
-	url    string
+	cfg    config.NtfyConfig
 	logger *log.Logger
 }
 
-func NewNotifier(url string, logger *log.Logger) *Notifier {
-	return &Notifier{url: url, logger: logger}
+func NewNotifier(cfg config.NtfyConfig, logger *log.Logger) *Notifier {
+	return &Notifier{cfg: cfg, logger: logger}
 }
 
-func (n *Notifier) Send(ctx context.Context, message string) error {
-	sender, err := shoutrrr.CreateSender(n.url)
+// Send sends a message to ntfy with optional headers for advanced features
+func (n *Notifier) Send(ctx context.Context, message string, headers map[string]string) error {
+	url := fmt.Sprintf("%s/%s", n.cfg.URL, n.cfg.Topic)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer([]byte(message)))
 	if err != nil {
 		if n.logger != nil {
-			n.logger.Printf("[notify] failed to create shoutrrr sender: %v", err)
+			n.logger.Printf("[notify] failed to create request: %v", err)
 		}
 		return err
 	}
-
-	errs := sender.Send(message, nil)
-	if len(errs) > 0 && errs[0] != nil {
+	req.Header.Set("Content-Type", "text/plain")
+	if n.cfg.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+n.cfg.Token)
+	}
+	// Set extra headers from config and call
+	for k, v := range n.cfg.Headers {
+		req.Header.Set(k, v)
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
 		if n.logger != nil {
-			n.logger.Printf("[notify] failed to send notification: %v", errs)
+			n.logger.Printf("[notify] failed to send notification: %v", err)
 		}
-		return errs[0]
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		if n.logger != nil {
+			n.logger.Printf("[notify] ntfy server returned status: %s", resp.Status)
+		}
+		return fmt.Errorf("ntfy server returned status: %s", resp.Status)
 	}
 	return nil
 }

@@ -22,18 +22,43 @@ type Task struct {
 	Status           string   `json:"status"`
 }
 
+// ParseNotificationDate parses the NotificationDate string into a time.Time object.
+func (t *Task) ParseNotificationDate() (time.Time, error) {
+	// Try Taskwarrior's default date format: "2006-01-02 15:04:05"
+	if t.NotificationDate == "" {
+		return time.Time{}, fmt.Errorf("NotificationDate is empty")
+	}
+	layouts := []string{
+		"2006-01-02 15:04:05",
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04",
+		"2006-01-02T15:04",
+	}
+	var lastErr error
+	for _, layout := range layouts {
+		parsed, err := time.Parse(layout, t.NotificationDate)
+		if err == nil {
+			return parsed, nil
+		}
+		lastErr = err
+	}
+	return time.Time{}, fmt.Errorf("could not parse NotificationDate '%s': %v", t.NotificationDate, lastErr)
+}
+
 func ExportIncompleteTasks() ([]Task, error) {
 	// ...existing code...
-       // Get pending tasks
-       pendingCmd := exec.Command("task", "status:pending", "export", "rc.json.array=on")
-       var pendingOut bytes.Buffer
-       pendingCmd.Stdout = &pendingOut
-       pendingCmd.Stderr = &pendingOut
-       err := pendingCmd.Run()
-       pendingRaw := pendingOut.String()
-       if err != nil {
-	       return nil, err
-       }
+	// Get pending tasks
+	pendingCmd := exec.Command("task", "status:pending", "export", "rc.json.array=on")
+	var pendingOut bytes.Buffer
+	pendingCmd.Stdout = &pendingOut
+	pendingCmd.Stderr = &pendingOut
+	err := pendingCmd.Run()
+	pendingRaw := pendingOut.String()
+	// No debug logging of task export
+	if err != nil {
+		return nil, err
+	}
 	start := -1
 	end := -1
 	for i, c := range pendingRaw {
@@ -44,19 +69,16 @@ func ExportIncompleteTasks() ([]Task, error) {
 			end = i
 		}
 	}
-       if start == -1 || end == -1 || end <= start {
-	       return nil, fmt.Errorf("could not find JSON array in pending output")
-       }
+	if start == -1 || end == -1 || end <= start {
+		fmt.Printf("[DEBUG] Could not find JSON array in pending output\n")
+		return nil, fmt.Errorf("could not find JSON array in pending output")
+	}
 	pendingPart := pendingRaw[start : end+1]
-       var pendingTasks []Task
-       if err := json.Unmarshal([]byte(pendingPart), &pendingTasks); err != nil {
-	       return nil, err
-       }
-       for _, t := range pendingTasks {
-	       if t.NotificationDate != "" {
-		       fmt.Printf("[DEBUG] Task with notification_date: %+v\n", t)
-	       }
-       }
+	var pendingTasks []Task
+	if err := json.Unmarshal([]byte(pendingPart), &pendingTasks); err != nil {
+		fmt.Printf("[DEBUG] JSON unmarshal error (pending): %v\n", err)
+		return nil, err
+	}
 
 	// Get waiting tasks
 	waitingCmd := exec.Command("task", "status:waiting", "export", "rc.json.array=on")

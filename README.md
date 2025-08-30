@@ -1,53 +1,3 @@
-## API Usage Examples
-
-### Create a Task via API
-
-You can create a new Taskwarrior task using the HTTP API. The API accepts any standard Taskwarrior field, any user-defined attribute (UDA), and supports multiple tags and annotations.
-
-#### Example 1: Minimal (description only)
-
-```bash
-curl -X POST http://localhost:8080/api/create-task \
-  -H 'Content-Type: application/json' \
-  -d '{"Description": "Buy groceries"}'
-```
-
-#### Example 2: With project, tags, due date, notification date, and annotations
-
-```bash
-curl -X POST http://localhost:8080/api/create-task \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "Description": "Prepare slides for meeting",
-    "Project": "work",
-    "Tags": ["presentation", "urgent"],
-    "Due": "2025-09-01T09:00",
-    "NotificationDate": "2025-08-31T18:00",
-    "Annotations": ["First draft due soon", "Check with team"]
-  }'
-```
-
-#### Example 3: With UDAs and custom fields
-
-```bash
-curl -X POST http://localhost:8080/api/create-task \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "Description": "Read a book",
-    "Tags": ["leisure", "reading"],
-    "uda_priority": "high",
-    "uda_context": "personal"
-  }'
-```
-
-#### Example 4: Invalid (missing description)
-
-```bash
-curl -X POST http://localhost:8080/api/create-task \
-  -H 'Content-Type: application/json' \
-  -d '{"Tags": ["oops"]}'
-# Response: HTTP 400, "Description is required"
-```
 # Task Herald
 
 Task Herald provides a notification service for Taskwarrior tasks with scheduled notification dates. It monitors your Taskwarrior tasks and sends notifications when tasks with a `notification_date` user-defined attribute (UDA) are due.
@@ -101,10 +51,9 @@ Import the home-manager module and configure:
       sync_interval = "5m";
       log_level = "info";
 
-      # Web interface settings (Nix-style, recommended)
+      # Web interface settings
       web = {
-        host = "127.0.0.1";
-        port = 8080;
+        listen = "127.0.0.1:8080";
         auth = false;
       };
 
@@ -114,8 +63,6 @@ Import the home-manager module and configure:
   };
 }
 ```
-
-**Note:** The Go backend now supports both the new `web.host`/`web.port` options and the legacy `web.listen` string (e.g., `listen = "127.0.0.1:8080";`). If both are set, `host`/`port` take precedence.
 
 ### Manual Installation
 
@@ -151,16 +98,10 @@ sync_interval: 5m
 # Logging level: error, warn, info, debug, verbose
 log_level: info
 
-# Web server settings (recommended)
+# Web server settings
 web:
-  host: "127.0.0.1"
-  port: 8080
+  listen: "127.0.0.1:8080"
   auth: false
-
-# Legacy style (still supported for backward compatibility)
-# web:
-#   listen: "127.0.0.1:8080"
-#   auth: false
 
 # Notification service URL (see Shoutrrr documentation)
 shoutrrr_url: "ntfy://task-herald@ntfy.sh"
@@ -200,14 +141,43 @@ This is especially useful with:
 - Kubernetes secrets
 - Home Manager secrets management
 
+
 ## Taskwarrior Setup
 
-Add the notification UDA to your `.taskrc`:
+Add the notification UDA and nagging (repeat) UDAs to your `.taskrc`:
 
 ```bash
 # Add to ~/.taskrc
 uda.notification_date.type=date
 uda.notification_date.label=Notify At
+
+# Enable repeating (nagging) notifications per task
+uda.taskherald.repeat_enable.type=string
+uda.taskherald.repeat_enable.values=true,false
+uda.taskherald.repeat_enable.label=Repeat Notification
+
+# Set the nagging interval (duration)
+uda.taskherald.repeat_delay.type=duration
+uda.taskherald.repeat_delay.label=Repeat Delay
+```
+
+### About Taskwarrior Durations
+
+Taskwarrior supports a flexible [duration format](https://taskwarrior.org/docs/durations/) for UDA values of type `duration`. Examples:
+
+- `10m` (10 minutes)
+- `1h` (1 hour)
+- `2d` (2 days)
+- `1w` (1 week)
+- `1h30m` (1 hour, 30 minutes)
+
+You can use these values for `taskherald.repeat_delay` to control how often a nagging notification is sent for a task.
+
+### Example: Setting up a nagging notification
+
+```bash
+# Add a task that will nag every 30 minutes until acknowledged
+task add "Take a break" notification_date:now+1min taskherald.repeat_enable:true taskherald.repeat_delay:30m
 ```
 
 Set notification dates on tasks:
