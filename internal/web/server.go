@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os/exec"
 	"path/filepath"
+	"os"
 	"encoding/json"
 
 	"task-herald/internal/taskwarrior"
@@ -17,22 +18,35 @@ type Server struct {
 }
 
 func NewServer(getTasks func() []taskwarrior.Task) *Server {
-	tmpl := template.Must(template.ParseFiles(
-		filepath.Join("web", "templates", "layout.html"),
-		filepath.Join("web", "templates", "index.html"),
-		filepath.Join("web", "templates", "tasks.html"),
-	))
-	return &Server{tmpl: tmpl, GetTasks: getTasks}
+       // Find the directory of the running binary
+       exePath, err := os.Executable()
+       baseDir := "."
+       if err == nil {
+	       baseDir = filepath.Dir(exePath)
+       }
+       templatesDir := filepath.Join(baseDir, "web", "templates")
+       tmpl := template.Must(template.ParseFiles(
+	       filepath.Join(templatesDir, "layout.html"),
+	       filepath.Join(templatesDir, "index.html"),
+	       filepath.Join(templatesDir, "tasks.html"),
+       ))
+       return &Server{tmpl: tmpl, GetTasks: getTasks}
 }
 
 func (s *Server) Serve(addr string) error {
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
-	http.HandleFunc("/", s.handleIndex)
-	http.HandleFunc("/api/tasks", s.handleTasks)
-	http.HandleFunc("/api/set-notification-date", s.handleSetNotificationDate)
-	http.HandleFunc("/api/create-task", s.handleCreateTask)
-	log.Printf("Web UI listening on %s", addr)
-	return http.ListenAndServe(addr, nil)
+       exePath, err := os.Executable()
+       baseDir := "."
+       if err == nil {
+	       baseDir = filepath.Dir(exePath)
+       }
+       staticDir := filepath.Join(baseDir, "web", "static")
+       http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
+       http.HandleFunc("/", s.handleIndex)
+       http.HandleFunc("/api/tasks", s.handleTasks)
+       http.HandleFunc("/api/set-notification-date", s.handleSetNotificationDate)
+       http.HandleFunc("/api/create-task", s.handleCreateTask)
+       log.Printf("Web UI listening on %s", addr)
+       return http.ListenAndServe(addr, nil)
 }
 // handleCreateTask handles POST /api/create-task to create a new Taskwarrior task from JSON
 func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {

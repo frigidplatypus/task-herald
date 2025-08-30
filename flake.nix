@@ -108,7 +108,7 @@
             home.file.${config.services.task-herald.configFile} = {
               text = if config.services.task-herald.configText != null
                      then config.services.task-herald.configText
-                     else pkgs.lib.generators.toYAML {} (
+                     else pkgs.lib.generators.toYAML { multiline = true; } (
                        lib.filterAttrs (n: v: v != null) config.services.task-herald.settings
                      );
             };
@@ -147,9 +147,14 @@
             cd $src
             PATH=$PATH:${pkgs.go}/bin
             GOFLAGS="-mod=vendor" go build -ldflags "-s -w" -o $out/bin/task-herald ./cmd
+            mkdir -p $out/web/templates
+            mkdir -p $out/web/static
+            cp -r web/templates/* $out/web/templates/
+            cp -r web/static/* $out/web/static/
           '';
           installPhase = ''
-            # no-op: we already built directly to $out/bin
+            # Remove all sources except the binary and assets for a minimal output
+            find $out -mindepth 1 -maxdepth 1 ! -name bin ! -name web -exec rm -rf {} +
           '';
           meta = {
             description = "Taskwarrior notifications service";
