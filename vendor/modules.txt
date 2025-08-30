@@ -1,0 +1,49 @@
+# github.com/containrrr/shoutrrr v0.8.0
+## explicit; go 1.18
+github.com/containrrr/shoutrrr
+github.com/containrrr/shoutrrr/internal/failures
+github.com/containrrr/shoutrrr/internal/meta
+github.com/containrrr/shoutrrr/pkg/format
+github.com/containrrr/shoutrrr/pkg/router
+github.com/containrrr/shoutrrr/pkg/services/bark
+github.com/containrrr/shoutrrr/pkg/services/discord
+github.com/containrrr/shoutrrr/pkg/services/generic
+github.com/containrrr/shoutrrr/pkg/services/googlechat
+github.com/containrrr/shoutrrr/pkg/services/gotify
+github.com/containrrr/shoutrrr/pkg/services/ifttt
+github.com/containrrr/shoutrrr/pkg/services/join
+github.com/containrrr/shoutrrr/pkg/services/logger
+github.com/containrrr/shoutrrr/pkg/services/matrix
+github.com/containrrr/shoutrrr/pkg/services/mattermost
+github.com/containrrr/shoutrrr/pkg/services/ntfy
+github.com/containrrr/shoutrrr/pkg/services/opsgenie
+github.com/containrrr/shoutrrr/pkg/services/pushbullet
+github.com/containrrr/shoutrrr/pkg/services/pushover
+github.com/containrrr/shoutrrr/pkg/services/rocketchat
+github.com/containrrr/shoutrrr/pkg/services/slack
+github.com/containrrr/shoutrrr/pkg/services/smtp
+github.com/containrrr/shoutrrr/pkg/services/standard
+github.com/containrrr/shoutrrr/pkg/services/teams
+github.com/containrrr/shoutrrr/pkg/services/telegram
+github.com/containrrr/shoutrrr/pkg/services/zulip
+github.com/containrrr/shoutrrr/pkg/types
+github.com/containrrr/shoutrrr/pkg/util
+github.com/containrrr/shoutrrr/pkg/util/generator
+github.com/containrrr/shoutrrr/pkg/util/jsonclient
+# github.com/fatih/color v1.15.0
+## explicit; go 1.17
+github.com/fatih/color
+# github.com/mattn/go-colorable v0.1.13
+## explicit; go 1.15
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.17
+## explicit; go 1.15
+github.com/mattn/go-isatty
+# golang.org/x/sys v0.6.0
+## explicit; go 1.17
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/unix
+golang.org/x/sys/windows
+# gopkg.in/yaml.v3 v3.0.1
+## explicit
+gopkg.in/yaml.v3
