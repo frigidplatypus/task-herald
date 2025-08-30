@@ -24,7 +24,8 @@ func NewServer(getTasks func() []taskwarrior.Task) *Server {
        if err == nil {
 	       baseDir = filepath.Dir(exePath)
        }
-       templatesDir := filepath.Join(baseDir, "web", "templates")
+       // In Nix, assets are at ../web/templates relative to the binary
+       templatesDir := filepath.Join(baseDir, "..", "web", "templates")
        tmpl := template.Must(template.ParseFiles(
 	       filepath.Join(templatesDir, "layout.html"),
 	       filepath.Join(templatesDir, "index.html"),
@@ -39,7 +40,8 @@ func (s *Server) Serve(addr string) error {
        if err == nil {
 	       baseDir = filepath.Dir(exePath)
        }
-       staticDir := filepath.Join(baseDir, "web", "static")
+       // In Nix, assets are at ../web/static relative to the binary
+       staticDir := filepath.Join(baseDir, "..", "web", "static")
        http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
        http.HandleFunc("/", s.handleIndex)
        http.HandleFunc("/api/tasks", s.handleTasks)
