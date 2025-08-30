@@ -79,6 +79,11 @@
                           };
                           description = "ntfy notification headers (Go template values allowed)";
                         };
+                        actions_enabled = lib.mkOption {
+                          type = lib.types.bool;
+                          default = false;
+                          description = "Automatically add X-Actions delay button to notifications";
+                        };
                       };
                     };
                     default = {};
@@ -101,6 +106,11 @@
                           type = lib.types.bool;
                           default = false;
                           description = "Enable authentication";
+                        };
+                        domain = lib.mkOption {
+                          type = lib.types.str;
+                          default = "localhost";
+                          description = "Domain or hostname for web UI (used for X-Actions URLs)";
                         };
                       };
                     };

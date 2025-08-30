@@ -19,10 +19,11 @@ type Config struct {
 }
 
 type NtfyConfig struct {
-	URL     string            `yaml:"url"`
-	Topic   string            `yaml:"topic"`
-	Token   string            `yaml:"token"`
-	Headers map[string]string `yaml:"headers"`
+	URL            string            `yaml:"url"`
+	Topic          string            `yaml:"topic"`
+	Token          string            `yaml:"token"`
+	Headers        map[string]string `yaml:"headers"`
+	ActionsEnabled bool              `yaml:"actions_enabled"`
 }
 
 type UDAMap struct {
@@ -34,6 +35,7 @@ type UDAMap struct {
 type WebConfig struct {
 	Listen string `yaml:"listen"`
 	Auth   bool   `yaml:"auth"`
+	Domain string `yaml:"domain"`
 }
 
 var (

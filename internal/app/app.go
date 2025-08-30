@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"sync"
 	"task-herald/internal/config"
@@ -171,6 +172,52 @@ func Run(configOverride string) error {
 					ntfyPriority = "default"
 				}
 				headers["X-Default"] = ntfyPriority
+
+				// If actions_enabled, set X-Actions header automatically
+				if cfg.Ntfy.ActionsEnabled {
+					// Determine scheme, domain, and port
+					scheme := "http"
+					domain := cfg.Web.Domain
+					port := ""
+					listen := cfg.Web.Listen
+					// Extract port from listen (e.g., 127.0.0.1:8080 or :8080)
+					if listen != "" {
+						// Try net.SplitHostPort, fallback for :8080
+						var p string
+						if listen[0] == ':' {
+							// e.g., :8080
+							p = listen[1:]
+						} else {
+							// Try to split host:port
+							hostPort := listen
+							if _, prt, err := net.SplitHostPort(hostPort); err == nil {
+								p = prt
+							} else {
+								// fallback: try last colon
+								if idx := len(listen) - 1; idx >= 0 {
+									for j := idx; j >= 0; j-- {
+										if listen[j] == ':' {
+											p = listen[j+1:]
+											break
+										}
+									}
+								}
+							}
+						}
+						if p != "" {
+							port = p
+						}
+					}
+					if domain == "" {
+						domain = "localhost"
+					}
+					url := scheme + "://" + domain
+					if port != "" {
+						url += ":" + port
+					}
+					url += "/delay?uuid=" + task.UUID + "&minutes=30"
+					headers["X-Actions"] = `[{"action":"view","label":"Delay 30m","url":"` + url + `"}]`
+				}
 				// Optionally, interpolate fields in headers here if needed
 				// Send notification
 				err = notifier.Send(nil, msg, headers)

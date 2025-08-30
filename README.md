@@ -44,9 +44,11 @@ Import the home-manager module and configure:
       sync_interval = "5m";
       log_level = "verbose";
 
+
       web = {
         listen = "127.0.0.1:8080";
         auth = false;
+        domain = "localhost";
       };
 
       ntfy = {
@@ -56,9 +58,8 @@ Import the home-manager module and configure:
         headers = {
           X-Title = "{{.Project}}";
           X-Default = "{{.Priority}}";
-          # X-Click = "https://example.com/task/{{.UUID}}";
-          # X-Actions = ''[{"action":"view","label":"View Task","url":"https://example.com/task/{{.UUID}}"}]'';
         };
+        actions_enabled = true;
       };
 
       # Custom notification message template
@@ -110,10 +111,13 @@ poll_interval: 30s
 # How often to run 'task sync' (e.g., 5m, 10m)
 sync_interval: 5m
 
+
 # Web server settings
 web:
   listen: "127.0.0.1:8080"       # Address and port to listen on
   auth: false                    # Enable authentication (true/false)
+  domain: "localhost"            # Hostname for X-Actions URLs
+
 
 # ntfy notification settings
 ntfy:
@@ -123,8 +127,7 @@ ntfy:
   headers:
     X-Title: "{{.Project}}"
     X-Default: "{{.Priority}}"
-    # X-Click: "https://example.com/task/{{.UUID}}"
-    # X-Actions: '[{"action":"view","label":"View Task","url":"https://example.com/task/{{.UUID}}"}]'
+  actions_enabled: true
 
 # Custom notification message (Go template, see TaskInfo struct for fields)
 # notification_message: "🔔 {{.Description}} (Due: {{.Due}})"
