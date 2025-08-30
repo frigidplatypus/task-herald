@@ -40,25 +40,35 @@ Import the home-manager module and configure:
   services.task-herald = {
     enable = true;
     settings = {
-      # Required: notification service URL
-      shoutrrr_url = "ntfy://task-herald@ntfy.sh";
-
-      # Alternative: read URL from file (more secure for credentials)
-      # shoutrrr_url_file = "/run/secrets/shoutrrr-url";
-
-      # Optional settings with defaults
       poll_interval = "30s";
       sync_interval = "5m";
-      log_level = "info";
+      log_level = "verbose";
 
-      # Web interface settings
       web = {
         listen = "127.0.0.1:8080";
         auth = false;
       };
 
+      ntfy = {
+        url = "https://ntfy.sh";
+        topic = "QWvwi17Z";
+        token = "";
+        headers = {
+          X-Title = "{{.Project}}";
+          X-Default = "{{.Priority}}";
+          # X-Click = "https://example.com/task/{{.UUID}}";
+          # X-Actions = ''[{"action":"view","label":"View Task","url":"https://example.com/task/{{.UUID}}"}]'';
+        };
+      };
+
       # Custom notification message template
-      notification_message = "🔔 {{.Description}} (Due: {{.Due}})";
+      # notification_message = "🔔 {{.Description}} (Due: {{.Due}})";
+
+      udas = {
+        notification_date = "notification_date";
+        repeat_enable = "notification_repeat_enable";
+        repeat_delay = "notification_repeat_delay";
+      };
     };
   };
 }

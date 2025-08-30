@@ -15,11 +15,6 @@
         in
         {
           options.services.task-herald = {
-            taskwarriorPackage = lib.mkOption {
-              type = lib.types.package;
-              default = pkgs.taskwarrior3 or pkgs.taskwarrior;
-              description = "The Taskwarrior package to use in the PATH for the service (e.g., pkgs.taskwarrior3 or pkgs.taskwarrior)";
-            };
             enable = lib.mkOption {
               type = lib.types.bool;
               default = false;
@@ -58,15 +53,36 @@
                     default = "info";
                     description = "Logging level: error, warn, info, debug, verbose";
                   };
-                  shoutrrr_url = lib.mkOption {
-                    type = lib.types.str;
-                    default = "";
-                    description = "Shoutrrr URL for notifications";
-                  };
-                  shoutrrr_url_file = lib.mkOption {
-                    type = lib.types.nullOr lib.types.str;
-                    default = null;
-                    description = "Path to file containing shoutrrr URL (alternative to shoutrrr_url)";
+                  ntfy = lib.mkOption {
+                    type = lib.types.submodule {
+                      options = {
+                        url = lib.mkOption {
+                          type = lib.types.str;
+                          default = "https://ntfy.sh";
+                          description = "ntfy server URL";
+                        };
+                        topic = lib.mkOption {
+                          type = lib.types.str;
+                          default = "";
+                          description = "ntfy topic name";
+                        };
+                        token = lib.mkOption {
+                          type = lib.types.str;
+                          default = "";
+                          description = "ntfy API token (optional)";
+                        };
+                        headers = lib.mkOption {
+                          type = lib.types.attrsOf lib.types.str;
+                          default = {
+                            X-Title = "{{.Project}}";
+                            X-Default = "{{.Priority}}";
+                          };
+                          description = "ntfy notification headers (Go template values allowed)";
+                        };
+                      };
+                    };
+                    default = {};
+                    description = "ntfy notification settings";
                   };
                   notification_message = lib.mkOption {
                     type = lib.types.nullOr lib.types.str;
@@ -76,15 +92,10 @@
                   web = lib.mkOption {
                     type = lib.types.submodule {
                       options = {
-                        host = lib.mkOption {
+                        listen = lib.mkOption {
                           type = lib.types.str;
-                          default = "127.0.0.1";
-                          description = "Host address to listen on";
-                        };
-                        port = lib.mkOption {
-                          type = lib.types.port;
-                          default = 8080;
-                          description = "Port to listen on";
+                          default = "127.0.0.1:8080";
+                          description = "Address and port to listen on";
                         };
                         auth = lib.mkOption {
                           type = lib.types.bool;
@@ -95,6 +106,29 @@
                     };
                     default = {};
                     description = "Web server settings";
+                  };
+                  udas = lib.mkOption {
+                    type = lib.types.submodule {
+                      options = {
+                        notification_date = lib.mkOption {
+                          type = lib.types.str;
+                          default = "notification_date";
+                          description = "UDA field for notification date";
+                        };
+                        repeat_enable = lib.mkOption {
+                          type = lib.types.str;
+                          default = "notification_repeat_enable";
+                          description = "UDA field for enabling repeat notifications";
+                        };
+                        repeat_delay = lib.mkOption {
+                          type = lib.types.str;
+                          default = "notification_repeat_delay";
+                          description = "UDA field for repeat delay duration";
+                        };
+                      };
+                    };
+                    default = {};
+                    description = "UDA field mapping for notification features";
                   };
                 };
               };
@@ -113,7 +147,7 @@
             home.file.${config.services.task-herald.configFile} = {
               text = if config.services.task-herald.configText != null
                      then config.services.task-herald.configText
-                     else pkgs.lib.generators.toYAML {} (
+                     else (pkgs.formats.yaml {}).generate "config.yaml" (
                        lib.filterAttrs (n: v: v != null) config.services.task-herald.settings
                      );
             };
@@ -129,7 +163,6 @@
                 Restart = "always";
                 WorkingDirectory = "%h/.local/state/task-herald";
                 StateDirectory = "task-herald";
-                Environment = "PATH=${config.services.task-herald.taskwarriorPackage}/bin:${pkgs.coreutils}/bin:/run/wrappers/bin:/usr/bin:/bin";
               };
             };
           };
@@ -152,15 +185,10 @@
             mkdir -p $out
             cd $src
             PATH=$PATH:${pkgs.go}/bin
-            GOFLAGS="-mod=vendor" go build -ldflags "-s -w" -o $out/bin/task-herald ./cmd
-            mkdir -p $out/web/templates
-            mkdir -p $out/web/static
-            cp -r web/templates/* $out/web/templates/
-            cp -r web/static/* $out/web/static/
+            go build -ldflags "-s -w" -o $out/bin/task-herald ./cmd
           '';
           installPhase = ''
-            # Remove all sources except the binary and assets for a minimal output
-            find $out -mindepth 1 -maxdepth 1 ! -name bin ! -name web -exec rm -rf {} +
+            # no-op: we already built directly to $out/bin
           '';
           meta = {
             description = "Taskwarrior notifications service";
