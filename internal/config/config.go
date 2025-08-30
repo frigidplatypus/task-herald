@@ -30,6 +30,8 @@ type NtfyConfig struct {
 
 type WebConfig struct {
 	Listen string `yaml:"listen"`
+	Host   string `yaml:"host"`
+	Port   int    `yaml:"port"`
 	Auth   bool   `yaml:"auth"`
 }
 

@@ -98,9 +98,10 @@ Import the home-manager module and configure:
       sync_interval = "5m";
       log_level = "info";
 
-      # Web interface settings
+      # Web interface settings (Nix-style, recommended)
       web = {
-        listen = "127.0.0.1:8080";
+        host = "127.0.0.1";
+        port = 8080;
         auth = false;
       };
 
@@ -110,6 +111,8 @@ Import the home-manager module and configure:
   };
 }
 ```
+
+**Note:** The Go backend now supports both the new `web.host`/`web.port` options and the legacy `web.listen` string (e.g., `listen = "127.0.0.1:8080";`). If both are set, `host`/`port` take precedence.
 
 ### Manual Installation
 
@@ -145,10 +148,16 @@ sync_interval: 5m
 # Logging level: error, warn, info, debug, verbose
 log_level: info
 
-# Web server settings
+# Web server settings (recommended)
 web:
-  listen: "127.0.0.1:8080"
+  host: "127.0.0.1"
+  port: 8080
   auth: false
+
+# Legacy style (still supported for backward compatibility)
+# web:
+#   listen: "127.0.0.1:8080"
+#   auth: false
 
 # Notification service URL (see Shoutrrr documentation)
 shoutrrr_url: "ntfy://task-herald@ntfy.sh"

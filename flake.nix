@@ -71,10 +71,15 @@
                   web = lib.mkOption {
                     type = lib.types.submodule {
                       options = {
-                        listen = lib.mkOption {
+                        host = lib.mkOption {
                           type = lib.types.str;
-                          default = "127.0.0.1:8080";
-                          description = "Address and port to listen on";
+                          default = "127.0.0.1";
+                          description = "Host address to listen on";
+                        };
+                        port = lib.mkOption {
+                          type = lib.types.port;
+                          default = 8080;
+                          description = "Port to listen on";
                         };
                         auth = lib.mkOption {
                           type = lib.types.bool;
@@ -141,7 +146,7 @@
             mkdir -p $out
             cd $src
             PATH=$PATH:${pkgs.go}/bin
-            go build -ldflags "-s -w" -o $out/bin/task-herald ./cmd
+            GOFLAGS="-mod=vendor" go build -ldflags "-s -w" -o $out/bin/task-herald ./cmd
           '';
           installPhase = ''
             # no-op: we already built directly to $out/bin
