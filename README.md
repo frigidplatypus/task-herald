@@ -37,7 +37,7 @@ Import the home-manager module and configure:
     inputs.task-herald.homeManagerModules.task-herald
   ];
 
-  taskHerald = {
+  services.task-herald = {
     enable = true;
     settings = {
       # Required: notification service URL

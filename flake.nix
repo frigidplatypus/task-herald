@@ -14,7 +14,7 @@
           taskHeraldPkg = self.packages.${pkgs.system}.default;
         in
         {
-          options.taskHerald = {
+          options.services.task-herald = {
             enable = lib.mkOption {
               type = lib.types.bool;
               default = false;
@@ -92,19 +92,19 @@
               description = "Task-herald runtime settings that will be rendered into config.yaml";
             };
           };
-          config = lib.mkIf config.taskHerald.enable {
+          config = lib.mkIf config.services.task-herald.enable {
             assertions = [
               {
-                assertion = (config.taskHerald.settings.shoutrrr_url != "") || (config.taskHerald.settings.shoutrrr_url_file != null);
-                message = "Either taskHerald.settings.shoutrrr_url or taskHerald.settings.shoutrrr_url_file must be set when task-herald is enabled";
+                assertion = (config.services.task-herald.settings.shoutrrr_url != "") || (config.services.task-herald.settings.shoutrrr_url_file != null);
+                message = "Either services.task-herald.settings.shoutrrr_url or services.task-herald.settings.shoutrrr_url_file must be set when task-herald is enabled";
               }
             ];
             home.packages = [ taskHeraldPkg ];
-            home.file.${config.taskHerald.configFile} = {
-              text = if config.taskHerald.configText != null
-                     then config.taskHerald.configText
+            home.file.${config.services.task-herald.configFile} = {
+              text = if config.services.task-herald.configText != null
+                     then config.services.task-herald.configText
                      else (pkgs.formats.yaml {}).generate "config.yaml" (
-                       lib.filterAttrs (n: v: v != null) config.taskHerald.settings
+                       lib.filterAttrs (n: v: v != null) config.services.task-herald.settings
                      );
             };
             systemd.user.services."task-herald" = {
@@ -115,7 +115,7 @@
                 WantedBy = [ "default.target" ];
               };
               Service = {
-                ExecStart = "${taskHeraldPkg}/bin/task-herald --config %h/${config.taskHerald.configFile}";
+                ExecStart = "${taskHeraldPkg}/bin/task-herald --config %h/${config.services.task-herald.configFile}";
                 Restart = "always";
                 WorkingDirectory = "%h/.local/state/task-herald";
                 StateDirectory = "task-herald";
