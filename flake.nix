@@ -8,7 +8,7 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, home-manager, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+  flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
         lib = pkgs.lib;
@@ -20,7 +20,6 @@
           nativeBuildInputs = [ pkgs.go ];
           buildPhase = ''
             export GOPRIVATE=github.com/frigidplatypus
-            # Ensure Go cache and GOPATH are in writable locations inside the build sandbox
             export GOCACHE="$PWD/.gocache"
             export GOPATH="$PWD/.gopath"
             mkdir -p "$GOCACHE" "$GOPATH"
@@ -32,42 +31,34 @@
           installPhase = ''
             # no-op: we already built directly to $out/bin
           '';
-          meta = with pkgs.lib; {
+          meta = {
             description = "Taskwarrior notifications service";
             license = "MIT";
           };
         };
 
-  # (NixOS module removed - this flake only provides a package and a Home Manager module for a user-level service)
-
-        # A minimal home-manager module that installs the package and provides a user service option
         homeManagerModule = { config, pkgs, ... }: {
           options.taskHerald = {
-            enable = lib.mkOption { 
-              type = lib.types.bool; 
-              default = false; 
-              description = "Enable task-herald user service"; 
+            enable = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = "Enable task-herald user service";
             };
-            
-            configFile = lib.mkOption { 
-              type = lib.types.str; 
-              default = ".config/task-herald/config.yaml"; 
-              description = "Path to the config file relative to home directory"; 
+            configFile = lib.mkOption {
+              type = lib.types.str;
+              default = ".config/task-herald/config.yaml";
+              description = "Path to the config file relative to home directory";
             };
-            
-            configText = lib.mkOption { 
-              type = lib.types.nullOr lib.types.str; 
-              default = null; 
-              description = "Config file contents for the user service (overrides settings)"; 
+            configText = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "Config file contents for the user service (overrides settings)";
             };
-            
-            package = lib.mkOption { 
-              type = lib.types.package; 
-              default = taskHeraldPkg; 
-              description = "Package to run"; 
+            package = lib.mkOption {
+              type = lib.types.package;
+              default = taskHeraldPkg;
+              description = "Package to run";
             };
-
-            # Declarative settings that will be turned into config.yaml when configText is not set
             settings = lib.mkOption {
               type = lib.types.submodule {
                 options = {
@@ -125,28 +116,21 @@
               description = "Task-herald runtime settings that will be rendered into config.yaml";
             };
           };
-
           config = lib.mkIf config.taskHerald.enable {
-            # Require that either shoutrrr_url or shoutrrr_url_file is provided
             assertions = [
               {
                 assertion = (config.taskHerald.settings.shoutrrr_url != "") || (config.taskHerald.settings.shoutrrr_url_file != null);
                 message = "Either taskHerald.settings.shoutrrr_url or taskHerald.settings.shoutrrr_url_file must be set when task-herald is enabled";
               }
             ];
-
             home.packages = [ taskHeraldPkg ];
-
-            # Generate YAML from settings unless configText is explicitly provided
             home.file.${config.taskHerald.configFile} = {
-              text = if config.taskHerald.configText != null 
-                     then config.taskHerald.configText 
+              text = if config.taskHerald.configText != null
+                     then config.taskHerald.configText
                      else (pkgs.formats.yaml {}).generate "config.yaml" (
                        lib.filterAttrs (n: v: v != null) config.taskHerald.settings
                      );
             };
-
-            # systemd user service
             systemd.user.services."task-herald" = {
               Unit = {
                 Description = "Task Herald (user service)";
@@ -163,18 +147,15 @@
             };
           };
         };
-
       in {
-        packages.${system}.default = taskHeraldPkg;
-        # Provide a defaultPackage attribute for systems that expect it (e.g. macOS/Darwin)
+        packages = { inherit (pkgs) taskHeraldPkg; };
         defaultPackage = taskHeraldPkg;
-
-        apps.${system}.default = {
-          type = "app";
-          program = "${taskHeraldPkg}/bin/task-herald";
+        apps = {
+          default = {
+            type = "app";
+            program = "${taskHeraldPkg}/bin/task-herald";
+          };
         };
-
-  homeManagerModules = { "task-herald" = homeManagerModule; };
-      }
-    );
+        homeManagerModules = { "task-herald" = homeManagerModule; };
+      });
 }
