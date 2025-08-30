@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -24,17 +25,21 @@ type Task struct {
 
 func ExportIncompleteTasks() ([]Task, error) {
 	// ...existing code...
-	// Get pending tasks
-	pendingCmd := exec.Command("task", "status:pending", "export", "rc.json.array=on")
-	var pendingOut bytes.Buffer
-	pendingCmd.Stdout = &pendingOut
-	pendingCmd.Stderr = &pendingOut
-	err := pendingCmd.Run()
-	pendingRaw := pendingOut.String()
-	// No debug logging of task export
-	if err != nil {
-		return nil, err
-	}
+       // Get pending tasks
+       fmt.Printf("[DEBUG] ExportIncompleteTasks: running: task status:pending export rc.json.array=on\n")
+       fmt.Printf("[DEBUG]   HOME=%s\n", os.Getenv("HOME"))
+       fmt.Printf("[DEBUG]   TASKRC=%s\n", os.Getenv("TASKRC"))
+       pendingCmd := exec.Command("task", "status:pending", "export", "rc.json.array=on")
+       var pendingOut bytes.Buffer
+       pendingCmd.Stdout = &pendingOut
+       pendingCmd.Stderr = &pendingOut
+       err := pendingCmd.Run()
+       pendingRaw := pendingOut.String()
+       fmt.Printf("[DEBUG]   task output (pending): %s\n", pendingRaw)
+       if err != nil {
+	       fmt.Printf("[DEBUG]   task command error: %v\n", err)
+	       return nil, err
+       }
 	start := -1
 	end := -1
 	for i, c := range pendingRaw {
