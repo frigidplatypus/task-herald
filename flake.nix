@@ -15,6 +15,11 @@
         in
         {
           options.services.task-herald = {
+            taskwarriorPackage = lib.mkOption {
+              type = lib.types.package;
+              default = pkgs.taskwarrior3 or pkgs.taskwarrior;
+              description = "The Taskwarrior package to use in the PATH for the service (e.g., pkgs.taskwarrior3 or pkgs.taskwarrior)";
+            };
             enable = lib.mkOption {
               type = lib.types.bool;
               default = false;
@@ -124,7 +129,7 @@
                 Restart = "always";
                 WorkingDirectory = "%h/.local/state/task-herald";
                 StateDirectory = "task-herald";
-                Environment = "PATH=${pkgs.taskwarrior}/bin:${pkgs.coreutils}/bin:/run/wrappers/bin:/usr/bin:/bin";
+                Environment = "PATH=${config.services.task-herald.taskwarriorPackage}/bin:${pkgs.coreutils}/bin:/run/wrappers/bin:/usr/bin:/bin";
               };
             };
           };
