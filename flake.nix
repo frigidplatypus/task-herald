@@ -8,36 +8,12 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, home-manager, ... }:
-  flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs { inherit system; };
-        lib = pkgs.lib;
-
-        taskHeraldPkg = pkgs.stdenv.mkDerivation {
-          pname = "task-herald";
-          version = "0.0.0";
-          src = ./.;
-          nativeBuildInputs = [ pkgs.go ];
-          buildPhase = ''
-            export GOPRIVATE=github.com/frigidplatypus
-            export GOCACHE="$PWD/.gocache"
-            export GOPATH="$PWD/.gopath"
-            mkdir -p "$GOCACHE" "$GOPATH"
-            mkdir -p $out
-            cd $src
-            PATH=$PATH:${pkgs.go}/bin
-            go build -ldflags "-s -w" -o $out/bin/task-herald ./cmd
-          '';
-          installPhase = ''
-            # no-op: we already built directly to $out/bin
-          '';
-          meta = {
-            description = "Taskwarrior notifications service";
-            license = "MIT";
-          };
-        };
-
-        homeManagerModule = { config, pkgs, ... }: {
+    let
+      homeManagerModule = { config, pkgs, lib, ... }:
+        let
+          taskHeraldPkg = self.packages.${pkgs.system}.default;
+        in
+        {
           options.taskHerald = {
             enable = lib.mkOption {
               type = lib.types.bool;
@@ -147,15 +123,46 @@
             };
           };
         };
-      in {
-        packages = { inherit (pkgs) taskHeraldPkg; };
-        defaultPackage = taskHeraldPkg;
-        apps = {
-          default = {
-            type = "app";
-            program = "${taskHeraldPkg}/bin/task-herald";
+    in
+    (flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = import nixpkgs { inherit system; };
+
+        taskHeraldPkg = pkgs.stdenv.mkDerivation {
+          pname = "task-herald";
+          version = "0.0.0";
+          src = ./.;
+          nativeBuildInputs = [ pkgs.go ];
+          buildPhase = ''
+            export GOPRIVATE=github.com/frigidplatypus
+            export GOCACHE="$PWD/.gocache"
+            export GOPATH="$PWD/.gopath"
+            mkdir -p "$GOCACHE" "$GOPATH"
+            mkdir -p $out
+            cd $src
+            PATH=$PATH:${pkgs.go}/bin
+            go build -ldflags "-s -w" -o $out/bin/task-herald ./cmd
+          '';
+          installPhase = ''
+            # no-op: we already built directly to $out/bin
+          '';
+          meta = {
+            description = "Taskwarrior notifications service";
+            license = "MIT";
           };
         };
-        homeManagerModules = { "task-herald" = homeManagerModule; };
-      });
+      in
+      {
+        packages.default = taskHeraldPkg;
+        apps.default = {
+          type = "app";
+          program = "${taskHeraldPkg}/bin/task-herald";
+          meta = {
+            description = "Taskwarrior notifications service";
+          };
+        };
+      }
+    )) // {
+      homeManagerModules = { "task-herald" = homeManagerModule; };
+    };
 }
