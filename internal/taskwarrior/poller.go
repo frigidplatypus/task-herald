@@ -35,7 +35,7 @@ func ExportIncompleteTasks() ([]Task, error) {
        pendingCmd.Stderr = &pendingOut
        err := pendingCmd.Run()
        pendingRaw := pendingOut.String()
-       fmt.Printf("[DEBUG]   task output (pending): %s\n", pendingRaw)
+	// fmt.Printf("[DEBUG]   task output (pending): %s\n", pendingRaw)
        if err != nil {
 	       fmt.Printf("[DEBUG]   task command error: %v\n", err)
 	       return nil, err
@@ -55,11 +55,16 @@ func ExportIncompleteTasks() ([]Task, error) {
 		return nil, fmt.Errorf("could not find JSON array in pending output")
 	}
 	pendingPart := pendingRaw[start : end+1]
-	var pendingTasks []Task
-	if err := json.Unmarshal([]byte(pendingPart), &pendingTasks); err != nil {
-		fmt.Printf("[DEBUG] JSON unmarshal error (pending): %v\n", err)
-		return nil, err
-	}
+       var pendingTasks []Task
+       if err := json.Unmarshal([]byte(pendingPart), &pendingTasks); err != nil {
+	       fmt.Printf("[DEBUG] JSON unmarshal error (pending): %v\n", err)
+	       return nil, err
+       }
+       for _, t := range pendingTasks {
+	       if t.NotificationDate != "" {
+		       fmt.Printf("[DEBUG] Task with notification_date: %+v\n", t)
+	       }
+       }
 
 	// Get waiting tasks
 	waitingCmd := exec.Command("task", "status:waiting", "export", "rc.json.array=on")
