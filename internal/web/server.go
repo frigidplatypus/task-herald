@@ -72,16 +72,26 @@ type Server struct {
 }
 
 func NewServer(getTasks func() []taskwarrior.Task) *Server {
-	tmpl := template.Must(template.ParseFiles(
-		filepath.Join("web", "templates", "layout.html"),
-		filepath.Join("web", "templates", "index.html"),
-		filepath.Join("web", "templates", "tasks.html"),
-	))
-	return &Server{tmpl: tmpl, GetTasks: getTasks}
+       // Allow override of template/static dir via env var (for Nix, etc)
+       assetDir := os.Getenv("TASK_HERALD_ASSET_DIR")
+       if assetDir == "" {
+	       assetDir = filepath.Join("web")
+       }
+       tmpl := template.Must(template.ParseFiles(
+	       filepath.Join(assetDir, "templates", "layout.html"),
+	       filepath.Join(assetDir, "templates", "index.html"),
+	       filepath.Join(assetDir, "templates", "tasks.html"),
+       ))
+       return &Server{tmpl: tmpl, GetTasks: getTasks}
 }
 
 func (s *Server) Serve(addr string) error {
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+       assetDir := os.Getenv("TASK_HERALD_ASSET_DIR")
+       if assetDir == "" {
+	       assetDir = filepath.Join("web")
+       }
+       staticDir := filepath.Join(assetDir, "static")
+       http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 	http.HandleFunc("/", s.handleIndex)
 	http.HandleFunc("/api/tasks", s.handleTasks)
 	http.HandleFunc("/api/set-notification-date", s.handleSetNotificationDate)
