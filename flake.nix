@@ -163,13 +163,14 @@
               }
             ];
             home.packages = [ taskHeraldPkg ];
-            home.file.${config.services.task-herald.configFile} = {
-              text = if config.services.task-herald.configText != null
-                     then config.services.task-herald.configText
-                     else (pkgs.formats.yaml {}).generate "config.yaml" (
-                       lib.filterAttrs (n: v: v != null) config.services.task-herald.settings
-                     );
-            };
+            home.file.${config.services.task-herald.configFile} =
+              if config.services.task-herald.configText != null then {
+                text = config.services.task-herald.configText;
+              } else {
+                source = (pkgs.formats.yaml {}).generate "config.yaml" (
+                  lib.filterAttrs (n: v: v != null) config.services.task-herald.settings
+                );
+              };
             systemd.user.services."task-herald" = {
               Unit = {
                 Description = "Task Herald (user service)";
