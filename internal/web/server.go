@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os/exec"
 	"path/filepath"
+	"encoding/json"
 
 	"task-herald/internal/taskwarrior"
 )
@@ -29,8 +30,58 @@ func (s *Server) Serve(addr string) error {
 	http.HandleFunc("/", s.handleIndex)
 	http.HandleFunc("/api/tasks", s.handleTasks)
 	http.HandleFunc("/api/set-notification-date", s.handleSetNotificationDate)
+	http.HandleFunc("/api/create-task", s.handleCreateTask)
 	log.Printf("Web UI listening on %s", addr)
 	return http.ListenAndServe(addr, nil)
+}
+// handleCreateTask handles POST /api/create-task to create a new Taskwarrior task from JSON
+func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	type reqBody struct {
+		Description      string   `json:"Description"`
+		Project          string   `json:"Project"`
+		Tags             []string `json:"Tags"`
+		Due              string   `json:"Due"`
+		NotificationDate string   `json:"NotificationDate"`
+	}
+	var body reqBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if body.Description == "" {
+		http.Error(w, "Description is required", http.StatusBadRequest)
+		return
+	}
+	args := []string{"add", body.Description}
+	if body.Project != "" {
+		args = append(args, "project:"+body.Project)
+	}
+	if len(body.Tags) > 0 {
+		for _, tag := range body.Tags {
+			if tag != "" {
+				args = append(args, "+"+tag)
+			}
+		}
+	}
+	if body.Due != "" {
+		args = append(args, "due:"+body.Due)
+	}
+	if body.NotificationDate != "" {
+		args = append(args, "notification_date:"+body.NotificationDate)
+	}
+	cmd := exec.Command("task", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		http.Error(w, "Failed to create task: "+string(output), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte(`{"status":"ok"}`))
 }
 
 // ...existing code...

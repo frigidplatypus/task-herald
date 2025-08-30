@@ -1,3 +1,50 @@
+## API Usage Examples
+
+### Create a Task via API
+
+You can create a new Taskwarrior task using the HTTP API:
+
+#### Example 1: Minimal (description only)
+
+```bash
+curl -X POST http://localhost:8080/api/create-task \
+  -H 'Content-Type: application/json' \
+  -d '{"Description": "Buy groceries"}'
+```
+
+#### Example 2: With project, tags, due date, and notification date
+
+```bash
+curl -X POST http://localhost:8080/api/create-task \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "Description": "Prepare slides for meeting",
+    "Project": "work",
+    "Tags": ["presentation", "urgent"],
+    "Due": "2025-09-01T09:00",
+    "NotificationDate": "2025-08-31T18:00"
+  }'
+```
+
+#### Example 3: Only description and tags
+
+```bash
+curl -X POST http://localhost:8080/api/create-task \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "Description": "Read a book",
+    "Tags": ["leisure", "reading"]
+  }'
+```
+
+#### Example 4: Invalid (missing description)
+
+```bash
+curl -X POST http://localhost:8080/api/create-task \
+  -H 'Content-Type: application/json' \
+  -d '{"Tags": ["oops"]}'
+# Response: HTTP 400, "Description is required"
+```
 # Task Herald
 
 Task Herald provides a notification service for Taskwarrior tasks with scheduled notification dates. It monitors your Taskwarrior tasks and sends notifications when tasks with a `notification_date` user-defined attribute (UDA) are due.
