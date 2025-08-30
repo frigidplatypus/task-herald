@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -26,18 +25,13 @@ type Task struct {
 func ExportIncompleteTasks() ([]Task, error) {
 	// ...existing code...
        // Get pending tasks
-       fmt.Printf("[DEBUG] ExportIncompleteTasks: running: task status:pending export rc.json.array=on\n")
-       fmt.Printf("[DEBUG]   HOME=%s\n", os.Getenv("HOME"))
-       fmt.Printf("[DEBUG]   TASKRC=%s\n", os.Getenv("TASKRC"))
        pendingCmd := exec.Command("task", "status:pending", "export", "rc.json.array=on")
        var pendingOut bytes.Buffer
        pendingCmd.Stdout = &pendingOut
        pendingCmd.Stderr = &pendingOut
        err := pendingCmd.Run()
        pendingRaw := pendingOut.String()
-	// fmt.Printf("[DEBUG]   task output (pending): %s\n", pendingRaw)
        if err != nil {
-	       fmt.Printf("[DEBUG]   task command error: %v\n", err)
 	       return nil, err
        }
 	start := -1
@@ -50,14 +44,12 @@ func ExportIncompleteTasks() ([]Task, error) {
 			end = i
 		}
 	}
-	if start == -1 || end == -1 || end <= start {
-		fmt.Printf("[DEBUG] Could not find JSON array in pending output\n")
-		return nil, fmt.Errorf("could not find JSON array in pending output")
-	}
+       if start == -1 || end == -1 || end <= start {
+	       return nil, fmt.Errorf("could not find JSON array in pending output")
+       }
 	pendingPart := pendingRaw[start : end+1]
        var pendingTasks []Task
        if err := json.Unmarshal([]byte(pendingPart), &pendingTasks); err != nil {
-	       fmt.Printf("[DEBUG] JSON unmarshal error (pending): %v\n", err)
 	       return nil, err
        }
        for _, t := range pendingTasks {
