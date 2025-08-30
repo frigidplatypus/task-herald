@@ -13,7 +13,6 @@ type Config struct {
 	PollInterval        time.Duration `yaml:"poll_interval"`
 	SyncInterval        time.Duration `yaml:"sync_interval"`
 	Ntfy                NtfyConfig    `yaml:"ntfy"`
-	Web                 WebConfig     `yaml:"web"`
 	LogLevel            string        `yaml:"log_level"`
 	NotificationMessage string        `yaml:"notification_message"`
 	UDAMap              UDAMap        `yaml:"udas"`
@@ -45,11 +44,7 @@ type UDAMap struct {
 	RepeatDelay      string `yaml:"repeat_delay"`
 }
 
-type WebConfig struct {
-	Listen string `yaml:"listen"`
-	Auth   bool   `yaml:"auth"`
-	Domain string `yaml:"domain"`
-}
+// WebConfig struct removed
 
 var (
 	currentConfig *Config

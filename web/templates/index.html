@@ -1,8 +1,0 @@
-{{ define "content" }}
-<div x-data>
-    <h2>All Incomplete Tasks</h2>
-    <div id="tasks-list" hx-get="/api/tasks" hx-trigger="load, every 10s" hx-target="#tasks-list" hx-swap="outerHTML">
-        Loading tasks...
-    </div>
-</div>
-{{ end }}

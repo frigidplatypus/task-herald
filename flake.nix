@@ -211,10 +211,7 @@
           installPhase = ''
             mkdir -p $out/bin
             cp bin/task-herald $out/bin/
-            mkdir -p $out/share/task-herald/web/templates
-            mkdir -p $out/share/task-herald/web/static
-            if [ -d web/templates ]; then cp -r web/templates/* $out/share/task-herald/web/templates/; fi
-            if [ -d web/static ]; then cp -r web/static/* $out/share/task-herald/web/static/; fi
+            # web interface removed
           '';
           meta = {
             description = "Taskwarrior notifications service";
