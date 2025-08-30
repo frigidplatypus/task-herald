@@ -102,15 +102,15 @@
                   web = lib.mkOption {
                     type = lib.types.submodule {
                       options = {
-                        listen = lib.mkOption {
+                        host = lib.mkOption {
                           type = lib.types.str;
-                          default = "127.0.0.1:8080";
-                          description = "Address and port to listen on";
+                          default = "127.0.0.1";
+                          description = "Host address to listen on";
                         };
-                        auth = lib.mkOption {
-                          type = lib.types.bool;
-                          default = false;
-                          description = "Enable authentication";
+                        port = lib.mkOption {
+                          type = lib.types.int;
+                          default = 8080;
+                          description = "Port to listen on";
                         };
                         domain = lib.mkOption {
                           type = lib.types.str;
