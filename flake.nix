@@ -183,6 +183,7 @@
                 Restart = "always";
                 WorkingDirectory = "%h/.local/state/task-herald";
                 StateDirectory = "task-herald";
+                Environment = [ "TASK_HERALD_ASSET_DIR=${taskHeraldPkg}/share/task-herald/web" ];
               };
             };
           };
