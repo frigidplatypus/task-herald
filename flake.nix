@@ -103,7 +103,7 @@
             home.file.${config.services.task-herald.configFile} = {
               text = if config.services.task-herald.configText != null
                      then config.services.task-herald.configText
-                     else (pkgs.formats.yaml {}).generate "config.yaml" (
+                     else pkgs.lib.generators.toYAML {} (
                        lib.filterAttrs (n: v: v != null) config.services.task-herald.settings
                      );
             };
