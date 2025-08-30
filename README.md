@@ -53,7 +53,8 @@ Import the home-manager module and configure:
 
       ntfy = {
         url = "https://ntfy.sh";
-        topic = "QWvwi17Z";
+        topic = "QWvwi17Z"; # Or use topic_file below
+        # topic_file = "/run/secrets/ntfy-topic"; # Alternative: read topic from file
         token = "";
         headers = {
           X-Title = "{{.Project}}";
@@ -122,7 +123,8 @@ web:
 # ntfy notification settings
 ntfy:
   url: "https://ntfy.sh"
-  topic: "QWvwi17Z"
+  topic: "QWvwi17Z"            # Or use topic_file below
+  # topic_file: "/run/secrets/ntfy-topic"   # Alternative: read topic from file
   token: ""
   headers:
     X-Title: "{{.Project}}"

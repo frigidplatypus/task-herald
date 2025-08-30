@@ -66,6 +66,11 @@
                           default = "";
                           description = "ntfy topic name";
                         };
+                        topic_file = lib.mkOption {
+                          type = lib.types.nullOr lib.types.str;
+                          default = null;
+                          description = "Path to file containing ntfy topic (alternative to topic)";
+                        };
                         token = lib.mkOption {
                           type = lib.types.str;
                           default = "";

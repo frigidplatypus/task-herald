@@ -18,12 +18,23 @@ type Config struct {
 	UDAMap              UDAMap        `yaml:"udas"`
 }
 
-type NtfyConfig struct {
 	URL            string            `yaml:"url"`
 	Topic          string            `yaml:"topic"`
+	TopicFile      string            `yaml:"topic_file"`
 	Token          string            `yaml:"token"`
 	Headers        map[string]string `yaml:"headers"`
 	ActionsEnabled bool              `yaml:"actions_enabled"`
+}
+
+// GetTopic returns the topic, reading from file if TopicFile is set
+func (n *NtfyConfig) GetTopic() string {
+       if n.TopicFile != "" {
+	       data, err := os.ReadFile(n.TopicFile)
+	       if err == nil {
+		       return string(bytes.TrimSpace(data))
+	       }
+       }
+       return n.Topic
 }
 
 type UDAMap struct {

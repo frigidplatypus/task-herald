@@ -21,7 +21,7 @@ func NewNotifier(cfg config.NtfyConfig, logger *log.Logger) *Notifier {
 
 // Send sends a message to ntfy with optional headers for advanced features
 func (n *Notifier) Send(ctx context.Context, message string, headers map[string]string) error {
-	url := fmt.Sprintf("%s/%s", n.cfg.URL, n.cfg.Topic)
+	url := fmt.Sprintf("%s/%s", n.cfg.URL, n.cfg.GetTopic())
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer([]byte(message)))
 	if err != nil {
 		if n.logger != nil {
