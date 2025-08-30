@@ -149,8 +149,9 @@
           config = lib.mkIf config.services.task-herald.enable {
             assertions = [
               {
-                assertion = (config.services.task-herald.settings.shoutrrr_url != "") || (config.services.task-herald.settings.shoutrrr_url_file != null);
-                message = "Either services.task-herald.settings.shoutrrr_url or services.task-herald.settings.shoutrrr_url_file must be set when task-herald is enabled";
+                assertion = (config.services.task-herald.settings.ntfy.url != null && config.services.task-herald.settings.ntfy.url != "")
+                  && (config.services.task-herald.settings.ntfy.topic != null && config.services.task-herald.settings.ntfy.topic != "");
+                message = "services.task-herald.settings.ntfy.url and ntfy.topic must be set when task-herald is enabled";
               }
             ];
             home.packages = [ taskHeraldPkg ];
