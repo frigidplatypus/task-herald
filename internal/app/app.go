@@ -149,31 +149,31 @@ func Run(configOverride string) error {
 				if err != nil {
 					msg = fmt.Sprintf("Task %s: %s", task.ID, task.Description)
 				}
-				   // Prepare dynamic headers (e.g., X-Title, X-Click, X-Actions)
-				   headers := map[string]string{}
-				   for k, v := range cfg.Ntfy.Headers {
-					   headers[k] = v
-				   }
-				   // Set X-Title to project
-				   if task.Project != "" {
-					   headers["X-Title"] = task.Project
-				   }
-				   // Map Taskwarrior priority to ntfy priority for X-Default
-				   var ntfyPriority string
-				   switch task.Priority {
-				   case "H", "h":
-					   ntfyPriority = "max"
-				   case "M", "m":
-					   ntfyPriority = "high"
-				   case "L", "l":
-					   ntfyPriority = "default"
-				   default:
-					   ntfyPriority = "default"
-				   }
-				   headers["X-Default"] = ntfyPriority
-				   // Optionally, interpolate fields in headers here if needed
-				   // Send notification
-				   err = notifier.Send(nil, msg, headers)
+				// Prepare dynamic headers (e.g., X-Title, X-Click, X-Actions)
+				headers := map[string]string{}
+				for k, v := range cfg.Ntfy.Headers {
+					headers[k] = v
+				}
+				// Set X-Title to project
+				if task.Project != "" {
+					headers["X-Title"] = task.Project
+				}
+				// Map Taskwarrior priority to ntfy priority for X-Default
+				var ntfyPriority string
+				switch task.Priority {
+				case "H", "h":
+					ntfyPriority = "max"
+				case "M", "m":
+					ntfyPriority = "high"
+				case "L", "l":
+					ntfyPriority = "default"
+				default:
+					ntfyPriority = "default"
+				}
+				headers["X-Default"] = ntfyPriority
+				// Optionally, interpolate fields in headers here if needed
+				// Send notification
+				err = notifier.Send(nil, msg, headers)
 				nowLocalMsg := time.Now().In(time.Local)
 				if err == nil {
 					notified[notifyKey] = struct{}{}

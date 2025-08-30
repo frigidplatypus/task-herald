@@ -86,31 +86,45 @@ Import the home-manager module and configure:
 
 ## Configuration
 
-### Configuration File Format
+### Configuration File Example
 
 ```yaml
-# How often to poll Taskwarrior for tasks
-poll_interval: 30s
-
-# How often to run 'task sync'
-sync_interval: 5m
+# Example config for task-herald
 
 # Logging level: error, warn, info, debug, verbose
-log_level: info
+log_level: verbose
+
+# How often to poll Taskwarrior for tasks (e.g., 30s, 1m)
+poll_interval: 30s
+
+# How often to run 'task sync' (e.g., 5m, 10m)
+sync_interval: 5m
 
 # Web server settings
 web:
-  listen: "127.0.0.1:8080"
-  auth: false
+  listen: "127.0.0.1:8080"       # Address and port to listen on
+  auth: false                    # Enable authentication (true/false)
 
-# Notification service URL (see Shoutrrr documentation)
-shoutrrr_url: "ntfy://task-herald@ntfy.sh"
+# ntfy notification settings
+ntfy:
+  url: "https://ntfy.sh"
+  topic: "QWvwi17Z"
+  token: ""
+  headers:
+    X-Title: "{{.Project}}"
+    X-Default: "{{.Priority}}"
+    # X-Click: "https://example.com/task/{{.UUID}}"
+    # X-Actions: '[{"action":"view","label":"View Task","url":"https://example.com/task/{{.UUID}}"}]'
 
-# Alternative: read URL from file (more secure)
-# shoutrrr_url_file: "/path/to/shoutrrr-url.txt"
+# Custom notification message (Go template, see TaskInfo struct for fields)
+# notification_message: "🔔 {{.Description}} (Due: {{.Due}})"
+# notification_message: ""
 
-# Custom notification message (Go template)
-notification_message: "🔔 {{.Description}} (Due: {{.Due}})"
+# UDA field mapping for notification features
+udas:
+  notification_date: notification_date
+  repeat_enable: notification_repeat_enable
+  repeat_delay: notification_repeat_delay
 ```
 
 ### Supported Notification Services
