@@ -4,6 +4,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"bytes"
 
 	"gopkg.in/yaml.v3"
 )
@@ -18,6 +19,7 @@ type Config struct {
 	UDAMap              UDAMap        `yaml:"udas"`
 }
 
+type NtfyConfig struct {
 	URL            string            `yaml:"url"`
 	Topic          string            `yaml:"topic"`
 	TopicFile      string            `yaml:"topic_file"`
