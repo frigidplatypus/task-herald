@@ -155,8 +155,11 @@
             assertions = [
               {
                 assertion = (config.services.task-herald.settings.ntfy.url != null && config.services.task-herald.settings.ntfy.url != "")
-                  && (config.services.task-herald.settings.ntfy.topic != null && config.services.task-herald.settings.ntfy.topic != "");
-                message = "services.task-herald.settings.ntfy.url and ntfy.topic must be set when task-herald is enabled";
+                  && (
+                    (config.services.task-herald.settings.ntfy.topic != null && config.services.task-herald.settings.ntfy.topic != "")
+                    || (config.services.task-herald.settings.ntfy.topic_file != null && config.services.task-herald.settings.ntfy.topic_file != "")
+                  );
+                message = "services.task-herald.settings.ntfy.url and (ntfy.topic or ntfy.topic_file) must be set when task-herald is enabled";
               }
             ];
             home.packages = [ taskHeraldPkg ];
