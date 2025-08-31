@@ -1,13 +1,12 @@
 # Task Herald
 
-Task Herald provides a notification service for Taskwarrior tasks with scheduled notification dates. It monitors your Taskwarrior tasks and sends notifications when tasks with a `notification_date` user-defined attribute (UDA) are due.
+
+Task Herald provides a notification service for Taskwarrior tasks with scheduled notification dates. It monitors your Taskwarrior tasks and sends notifications when tasks with a `notification_date` user-defined attribute (UDA) are due, using [ntfy](https://ntfy.sh/) for push notifications.
 
 ## Features
 
-- **Flexible Notifications**: Supports any notification service via [Shoutrrr](https://containrrr.dev/shoutrrr/) (ntfy, Discord, Slack, email, etc.)
+- **ntfy Notifications**: Sends push notifications via [ntfy](https://ntfy.sh/)
 - **Taskwarrior Integration**: Polls Taskwarrior for tasks with `notification_date` UDA
-- **Web Interface**: View and manage tasks through a web UI
-- **Credential Security**: Support for reading notification URLs from files (for secure credential management)
 - **Nix Integration**: First-class Nix flake with home-manager module
 - **Systemd Service**: Designed to run as a user-level systemd service
 
@@ -45,11 +44,7 @@ Import the home-manager module and configure:
       log_level = "verbose";
 
 
-      web = {
-        listen = "127.0.0.1:8080";
-        auth = false;
-        domain = "localhost";
-      };
+
 
       ntfy = {
         url = "https://ntfy.sh";
@@ -60,7 +55,6 @@ Import the home-manager module and configure:
           X-Title = "{{.Project}}";
           X-Default = "{{.Priority}}";
         };
-        actions_enabled = true;
       };
 
       # Custom notification message template
@@ -113,11 +107,6 @@ poll_interval: 30s
 sync_interval: 5m
 
 
-# Web server settings
-web:
-  listen: "127.0.0.1:8080"       # Address and port to listen on
-  auth: false                    # Enable authentication (true/false)
-  domain: "localhost"            # Hostname for X-Actions URLs
 
 
 # ntfy notification settings
@@ -142,33 +131,10 @@ udas:
   repeat_delay: notification_repeat_delay
 ```
 
-### Supported Notification Services
 
-Task Herald uses [Shoutrrr](https://containrrr.dev/shoutrrr/) for notifications, supporting:
+### ntfy Notification Service
 
-- **ntfy**: `ntfy://[username:password@]ntfy.sh/topic`
-- **Discord**: `discord://token@channel`
-- **Slack**: `slack://bottoken@channel`
-- **Email**: `smtp://username:password@host:port/?from=fromAddress&to=recipient`
-- **Many others**: See [Shoutrrr documentation](https://containrrr.dev/shoutrrr/v0.8/services/)
-
-### Credential Security
-
-For security, you can store notification URLs in files instead of configuration:
-
-```yaml
-# Instead of exposing credentials in config
-# shoutrrr_url: "discord://secret-token@channel"
-
-# Read from file
-shoutrrr_url_file: "/run/secrets/discord-webhook"
-```
-
-This is especially useful with:
-- systemd credentials: `LoadCredential=discord-webhook:/path/to/webhook`
-- Docker secrets
-- Kubernetes secrets
-- Home Manager secrets management
+Task Herald uses [ntfy](https://ntfy.sh/) for notifications. You can configure the ntfy server, topic, token, and headers in your config file. For security, you can store the topic in a file using the `topic_file` option.
 
 
 ## Taskwarrior Setup
@@ -181,13 +147,13 @@ uda.notification_date.type=date
 uda.notification_date.label=Notify At
 
 # Enable repeating (nagging) notifications per task
-uda.taskherald.repeat_enable.type=string
-uda.taskherald.repeat_enable.values=true,false
-uda.taskherald.repeat_enable.label=Repeat Notification
+uda.notification_repeat_enable.type=string
+uda.notification_repeat_enable.values=true,false
+uda.notification_repeat_enable.label=Repeat Notification
 
 # Set the nagging interval (duration)
-uda.taskherald.repeat_delay.type=duration
-uda.taskherald.repeat_delay.label=Repeat Delay
+uda.notification_repeat_delay.type=duration
+uda.notification_repeat_delay.label=Repeat Delay
 ```
 
 ### About Taskwarrior Durations
