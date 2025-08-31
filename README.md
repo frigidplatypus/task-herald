@@ -57,6 +57,24 @@ Import the home-manager module and configure:
         };
       };
 
+      # HTTP API (optional)
+      # If you enable the HTTP API, task-herald will start a small HTTP server
+      # serving a health endpoint and management endpoints. You can configure
+      # address, TLS cert/key, and an authentication token.
+      http = {
+        addr = "127.0.0.1:43000"; # or ":0" for ephemeral port
+        tls_cert = null; # path to TLS certificate file (optional)
+        tls_key = null;  # path to TLS private key file (optional)
+  # You can provide secrets inline (auth_token, tls_cert, tls_key) or
+  # point to files containing the secret values. Using file-backed
+  # options is recommended when storing configuration in a public repo.
+  auth_token = null; # Bearer token to require for API requests (optional)
+  auth_token_file = null; # Path to file containing bearer token (optional)
+  tls_cert_file = null; # Path to TLS certificate file (optional, file-backed)
+  tls_key_file = null;  # Path to TLS private key file (optional, file-backed)
+        debug = false; # enable /api/debug endpoint
+      };
+
       # Custom notification message template
       # notification_message = "🔔 {{.Description}} (Due: {{.Due}})";
 

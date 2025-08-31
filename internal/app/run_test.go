@@ -403,3 +403,70 @@ func TestRun_XActionsTemplate(t *testing.T) {
 		t.Fatalf("expected escaped uuid in X-Actions header, got %q", xa[0])
 	}
 }
+
+func TestRun_StartHTTPServer(t *testing.T) {
+	// override loadConfigFunc to minimal config
+	origLoad := loadConfigFunc
+	defer func() { loadConfigFunc = origLoad }()
+	loadConfigFunc = func(path string) (*config.Config, error) {
+		return &config.Config{PollInterval: 10 * time.Millisecond, SyncInterval: 0, Ntfy: config.NtfyConfig{URL: "https://ntfy.example.com", Topic: "test-topic", Headers: map[string]string{}}, LogLevel: "debug", NotificationMessage: "{{.Description}}", UDAMap: config.UDAMap{NotificationDate: "notification_date"}}, nil
+	}
+
+	// override startHTTPServerFunc to start an httptest.Server and signal when ready
+	origStart := startHTTPServerFunc
+	defer func() { startHTTPServerFunc = origStart }()
+	started := make(chan string, 1)
+	startHTTPServerFunc = func(handler http.Handler) (func() error, string, error) {
+		srv := httptest.NewServer(handler)
+		// signal server URL
+		started <- srv.URL
+		return func() error { srv.Close(); return nil }, srv.Listener.Addr().String(), nil
+	}
+
+	// override poller to no-op
+	origPoller := pollerFunc
+	defer func() { pollerFunc = origPoller }()
+	pollerFunc = func(interval time.Duration, out chan<- []taskwarrior.Task, stop <-chan struct{}) {
+		out <- []taskwarrior.Task{}
+		close(out)
+	}
+
+	// prepare runSigCh that we control
+	origRunSigCh := runSigCh
+	defer func() { runSigCh = origRunSigCh }()
+	sigCh := make(chan struct{})
+	runSigCh = func() <-chan struct{} { return sigCh }
+
+	// run in background
+	runErr := make(chan error, 1)
+	go func() {
+		runErr <- Run("")
+	}()
+
+	// wait for server to be started
+	var serverURL string
+	select {
+	case serverURL = <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("server did not start in time")
+	}
+
+	// verify health endpoint while Run is running
+	resp, err := http.Get(serverURL + "/api/health")
+	if err != nil {
+		// stop Run
+		close(sigCh)
+		t.Fatalf("http get health failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		close(sigCh)
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	// now signal Run to exit and wait
+	close(sigCh)
+	if err := <-runErr; err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+}

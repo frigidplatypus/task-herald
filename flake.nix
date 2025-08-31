@@ -99,6 +99,54 @@
                     default = {};
                     description = "ntfy notification settings";
                   };
+                  http = lib.mkOption {
+                    type = lib.types.submodule {
+                      options = {
+                        addr = lib.mkOption {
+                          type = lib.types.str;
+                          default = "127.0.0.1:43000";
+                          description = "Address to bind the HTTP API server";
+                        };
+                        tls_cert = lib.mkOption {
+                          type = lib.types.nullOr lib.types.str;
+                          default = null;
+                          description = "Path to TLS certificate file (optional)";
+                        };
+                        tls_key = lib.mkOption {
+                          type = lib.types.nullOr lib.types.str;
+                          default = null;
+                          description = "Path to TLS private key file (optional)";
+                        };
+                        tls_cert_file = lib.mkOption {
+                          type = lib.types.nullOr lib.types.str;
+                          default = null;
+                          description = "Path to TLS certificate file (optional, file-backed)";
+                        };
+                        tls_key_file = lib.mkOption {
+                          type = lib.types.nullOr lib.types.str;
+                          default = null;
+                          description = "Path to TLS private key file (optional, file-backed)";
+                        };
+                        auth_token = lib.mkOption {
+                          type = lib.types.nullOr lib.types.str;
+                          default = null;
+                          description = "Bearer token required for API access (optional)";
+                        };
+                        auth_token_file = lib.mkOption {
+                          type = lib.types.nullOr lib.types.str;
+                          default = null;
+                          description = "Path to file containing bearer token (optional, file-backed)";
+                        };
+                        debug = lib.mkOption {
+                          type = lib.types.bool;
+                          default = false;
+                          description = "Enable debug endpoint";
+                        };
+                      };
+                    };
+                    default = {};
+                    description = "HTTP API settings for task-herald";
+                  };
                   notification_message = lib.mkOption {
                     type = lib.types.nullOr lib.types.str;
                     default = null;

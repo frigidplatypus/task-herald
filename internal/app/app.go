@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"reflect"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"task-herald/internal/notify"
 	"task-herald/internal/taskwarrior"
 	"task-herald/internal/util"
+	"task-herald/internal/web"
 	"time"
 )
 
@@ -33,6 +36,59 @@ var (
 		return notify.NewNotifier(cfg, logger)
 	}
 	notifySleepDuration = 5 * time.Second
+	// Hook to start HTTP server; returns a shutdown function, the address started on, and an error
+	startHTTPServerFunc = func(handler http.Handler) (func() error, string, error) {
+		cfg := config.Get()
+		var addr string
+		var tlsCert, tlsKey, token string
+		if cfg != nil && cfg.HTTP.Addr != "" {
+			addr = cfg.HTTP.Addr
+			tlsCert = cfg.HTTP.TLSCert
+			tlsKey = cfg.HTTP.TLSKey
+			token = cfg.HTTP.AuthToken
+		}
+		if addr == "" {
+			// fallback to env
+			addr = os.Getenv("TASK_HERALD_HTTP_ADDR")
+		}
+		// resolve token from file if provided
+		if token == "" && cfg != nil && cfg.HTTP.AuthTokenFile != "" {
+			if t, err := resolveHTTPAuthToken(cfg); err == nil {
+				token = t
+			}
+		}
+		// resolve TLS cert/key file if provided
+		if (tlsCert == "" || tlsKey == "") && cfg != nil {
+			c, k := resolveTLSPaths(cfg)
+			if tlsCert == "" {
+				tlsCert = c
+			}
+			if tlsKey == "" {
+				tlsKey = k
+			}
+		}
+		if addr == "" {
+			return nil, "", nil
+		}
+		// wrap handler with auth if token configured
+		if token != "" {
+			handler = web.AuthMiddleware(handler, token)
+		}
+		// listen on given address (support :0)
+		ln, err := net.Listen("tcp", addr)
+		if err != nil {
+			return nil, "", err
+		}
+		srv := &http.Server{Handler: handler}
+		go func() {
+			if tlsCert != "" && tlsKey != "" {
+				srv.ServeTLS(ln, tlsCert, tlsKey)
+			} else {
+				srv.Serve(ln)
+			}
+		}()
+		return srv.Close, ln.Addr().String(), nil
+	}
 )
 
 // typeNotifier is an interface used so tests can inject a fake notifier
@@ -259,12 +315,22 @@ func Run(configOverride string) error {
 	}()
 
 	// Web server removed
+	// Start HTTP server if configured via env var
+	shutdownHTTP := func() error { return nil }
+	if fn, addr, err := startHTTPServerFunc(web.NewRouter()); err != nil {
+		config.Log(config.ERROR, "failed to start http server: %v", err)
+	} else if fn != nil {
+		shutdownHTTP = fn
+		config.Log(config.INFO, "HTTP server listening on %s", addr)
+	}
 
 	// Block until interrupted (SIGINT/SIGTERM)
 	sigCh := runSigCh()
 	select {
 	case <-sigCh:
 	}
+	// Shutdown http server if running
+	shutdownHTTP()
 	return nil
 }
 
