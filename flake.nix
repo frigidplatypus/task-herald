@@ -35,6 +35,11 @@
               default = taskHeraldPkg;
               description = "Package to run";
             };
+            taskwarriorPackage = lib.mkOption {
+              type = lib.types.package;
+              default = pkgs.taskwarrior3;
+              description = "Taskwarrior package to use for the service PATH (default: taskwarrior3)";
+            };
             settings = lib.mkOption {
               type = lib.types.submodule {
                 options = {
@@ -160,7 +165,10 @@
                 Restart = "always";
                 WorkingDirectory = "%h/.local/state/task-herald";
                 StateDirectory = "task-herald";
-                Environment = [ "TASK_HERALD_ASSET_DIR=${taskHeraldPkg}/share/task-herald/web" ];
+                Environment = [
+                  "PATH=${config.services.task-herald.taskwarriorPackage}/bin:${pkgs.coreutils}/bin:$PATH"
+                  "TASK_HERALD_ASSET_DIR=${taskHeraldPkg}/share/task-herald/web"
+                ];
               };
             };
           };
