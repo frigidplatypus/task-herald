@@ -1,307 +1,176 @@
+go test ./...
 # Task Herald
 
+Task Herald watches Taskwarrior tasks and sends scheduled notifications via ntfy for tasks with a notification UDA.
 
-Task Herald provides a notification service for Taskwarrior tasks with scheduled notification dates. It monitors your Taskwarrior tasks and sends notifications when tasks with a `notification_date` user-defined attribute (UDA) are due, using [ntfy](https://ntfy.sh/) for push notifications.
+Overview
+- Polls Taskwarrior and sends ntfy notifications for tasks with a configured UDA.
+- Provides a Home Manager module (flake) for deployment.
+- Optional HTTP API for health and lightweight task management.
 
-## Features
+Quick start
 
-- **ntfy Notifications**: Sends push notifications via [ntfy](https://ntfy.sh/)
-- **Taskwarrior Integration**: Polls Taskwarrior for tasks with `notification_date` UDA
-- **Nix Integration**: First-class Nix flake with home-manager module
-- **Systemd Service**: Designed to run as a user-level systemd service
+Build locally:
 
-## Installation
-
-### Using Nix Flake (Recommended)
-
-Add this flake as an input to your system flake:
-
-```nix
-{
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    home-manager.url = "github:nix-community/home-manager";
-    task-herald.url = "github:frigidplatypus/task-herald";
-  };
-}
+```sh
+git clone https://github.com/frigidplatypus/task-herald.git
+cd task-herald
+go build -o task-herald ./cmd
 ```
 
-### Using Home Manager
+Run with a config file:
 
-Import the home-manager module and configure:
-
-```nix
-{
-  imports = [
-    inputs.task-herald.homeManagerModules.task-herald
-  ];
-
-  services.task-herald = {
-    enable = true;
-    settings = {
-      poll_interval = "30s";
-      sync_interval = "5m";
-      log_level = "verbose";
-
-
-
-
-      ntfy = {
-        url = "https://ntfy.sh";
-        topic = "QWvwi17Z"; # Or use topic_file below
-        # topic_file = "/run/secrets/ntfy-topic"; # Alternative: read topic from file
-        token = "";
-        headers = {
-          X-Title = "{{.Project}}";
-          X-Default = "{{.Priority}}";
-        };
-      };
-
-      # HTTP API (optional)
-      # If you enable the HTTP API, task-herald will start a small HTTP server
-      # serving a health endpoint and management endpoints. You can configure
-      # address, TLS cert/key, and an authentication token.
-      http = {
-        addr = "127.0.0.1:43000"; # or ":0" for ephemeral port
-        tls_cert = null; # path to TLS certificate file (optional)
-        tls_key = null;  # path to TLS private key file (optional)
-  # You can provide secrets inline (auth_token, tls_cert, tls_key) or
-  # point to files containing the secret values. Using file-backed
-  # options is recommended when storing configuration in a public repo.
-  auth_token = null; # Bearer token to require for API requests (optional)
-  auth_token_file = null; # Path to file containing bearer token (optional)
-  tls_cert_file = null; # Path to TLS certificate file (optional, file-backed)
-  tls_key_file = null;  # Path to TLS private key file (optional, file-backed)
-        debug = false; # enable /api/debug endpoint
-      };
-
-      # Custom notification message template
-      # notification_message = "🔔 {{.Description}} (Due: {{.Due}})";
-
-      udas = {
-        notification_date = "notification_date";
-        repeat_enable = "notification_repeat_enable";
-        repeat_delay = "notification_repeat_delay";
-      };
-    };
-  };
-}
+```sh
+./task-herald --config ./config.yaml
 ```
 
-### Manual Installation
+Configuration (`config.yaml`)
 
-1. **Build from source:**
-   ```bash
-   git clone https://github.com/frigidplatypus/task-herald.git
-   cd task-herald
-   go build -o task-herald ./cmd
-   ```
-
-2. **Create configuration:**
-   ```bash
-   cp config.example.yaml config.yaml
-   # Edit config.yaml with your settings
-   ```
-
-3. **Run the service:**
-   ```bash
-   ./task-herald --config config.yaml
-   ```
-
-## Configuration
-
-### Configuration File Example
+Minimal example (trim to the fields you need):
 
 ```yaml
-# Example config for task-herald
-
-# Logging level: error, warn, info, debug, verbose
-log_level: verbose
-
-# How often to poll Taskwarrior for tasks (e.g., 30s, 1m)
+log_level: info
 poll_interval: 30s
-
-# How often to run 'task sync' (e.g., 5m, 10m)
 sync_interval: 5m
 
-
-
-
-# ntfy notification settings
 ntfy:
   url: "https://ntfy.sh"
-  topic: "QWvwi17Z"            # Or use topic_file below
-  # topic_file: "/run/secrets/ntfy-topic"   # Alternative: read topic from file
-  token: ""
+  topic: "your-topic"
+  # or use a file: topic_file: "/run/secrets/ntfy-topic"
+  token: "" # or prefer a file-backed secret
   headers:
     X-Title: "{{.Project}}"
     X-Default: "{{.Priority}}"
   actions_enabled: true
 
-# Custom notification message (Go template, see TaskInfo struct for fields)
-# notification_message: "🔔 {{.Description}} (Due: {{.Due}})"
-# notification_message: ""
+notification_message: "" # optional Go template
 
-# UDA field mapping for notification features
 udas:
   notification_date: notification_date
   repeat_enable: notification_repeat_enable
   repeat_delay: notification_repeat_delay
+
+http:
+  # Prefer configuring host and port separately; `addr` remains for backward compatibility
+  host: "127.0.0.1"
+  port: 43000
+  addr: "127.0.0.1:43000" # optional, deprecated: prefer host+port
+  debug: false
+
+domain: "example.local" # public-facing domain used to build acknowledgement URLs in notifications
 ```
 
+Home Manager module (flake)
 
-### ntfy Notification Service
+The flake exports a Home Manager module at `homeManagerModules.task-herald`. Import it into your Home Manager configuration and set options under `services.task-herald.settings`.
 
-Task Herald uses [ntfy](https://ntfy.sh/) for notifications. You can configure the ntfy server, topic, token, and headers in your config file. For security, you can store the topic in a file using the `topic_file` option.
+Example (Nix snippet):
 
-## HTTP API Endpoints
+```nix
+# Example flake that uses the task-herald Home Manager module (copy into
+# e.g. `flake.nix` in your dotfiles repo). This creates `homeConfigurations`
+# for the listed systems. Adjust `home.username` and secret paths to taste.
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    home-manager.url = "github:nix-community/home-manager";
+    task-herald.url = "github:frigidplatypus/task-herald";
+  };
 
-When the HTTP API is enabled (see `http.addr` in configuration), task-herald exposes a small management API. If `http.auth_token` or `http.auth_token_file` is set, all endpoints require the header `Authorization: Bearer <token>`.
+  outputs = { self, nixpkgs, home-manager, task-herald, ... }:
+    let
+      systems = [ "x86_64-linux" ];
+    in
+    {
+      homeConfigurations = builtins.listToAttrs (map (system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+        in
+        {
+          name = system;
+          value = home-manager.lib.homeManagerConfiguration {
+            inherit pkgs;
+            modules = [ task-herald.homeManagerModules.task-herald ];
+            configuration = {
+              home.username = "alice";
+              home.homeDirectory = "/home/alice";
+
+              services.task-herald.enable = true;
+              services.task-herald.settings = {
+                poll_interval = "30s";
+                sync_interval = "5m";
+                ntfy = { url = "https://ntfy.sh"; topic_file = "/run/secrets/ntfy-topic"; };
+                http = {
+                  addr = "127.0.0.1:43000";
+                  auth_token_file = "/run/secrets/task-herald-token";
+                };
+              };
+            };
+          };
+        }
+      ) systems);
+    };
+}
+```
+
+Key Home Manager options (under `settings`):
+- `ntfy.url`, `ntfy.topic` or `ntfy.topic_file`
+- `ntfy.token` or use Home Manager file options
+- `poll_interval`, `sync_interval`, `log_level`
+- `http.addr` (bind address)
+- `http.tls_cert`, `http.tls_key` (inline paths)
+- `http.tls_cert_file`, `http.tls_key_file` (file-backed TLS paths)
+- `http.auth_token`, `http.auth_token_file` (inline or file-backed bearer token)
+- `http.debug` (enable `/api/debug`)
+
+Security note: prefer `*_file` options for secrets and keep secret files restrictive (e.g., 0600).
+
+HTTP API (optional)
+
+When enabled, the API exposes these endpoints. If `http.auth_token` or `http.auth_token_file` is set, include `Authorization: Bearer <token>`.
 
 - GET /api/health
-  - Description: Simple health check.
-  - Request: none
-  - Response: 200 OK
-    - Body: JSON {"status": "ok"}
-  - Example:
-
-```sh
-curl -sS http://127.0.0.1:43000/api/health
-```
+  - Response: 200 OK, `{ "status": "ok" }`
 
 - POST /api/create-task
-  - Description: Create a Taskwarrior task used by task-herald. This is a thin wrapper used by UIs or automation.
-  - Request: application/json
-    - Fields:
-      - `description` (string, required)
-      - `project` (string, optional)
-      - `tags` (array of strings, optional)
-      - `annotations` (array of strings, optional) — Taskwarrior-style annotations (free-form strings)
-      - `notification_date` (string, optional) — use Taskwarrior date formats (e.g., `2025-09-01T09:00`, `tomorrow`, or `now+1h`).
-  - Success Response: 201 Created
-    - Body: JSON `{ "uuid": "<task-uuid>", "message": "created" }`
-  - Errors: 400 on malformed JSON or missing `description`, 401 if auth required and no/invalid token, 500 on server error.
-  - Example:
-
-```sh
-curl -X POST -H 'Content-Type: application/json' \
-  -d '{"description":"Take out trash","notification_date":"tomorrow"}' \
-  http://127.0.0.1:43000/api/create-task
-```
+  - Request: JSON
+    - `description` (string, required)
+    - `project` (string, optional)
+    - `tags` ([]string, optional)
+    - `annotations` ([]string, optional)
+    - `notification_date` (string, optional)
+  - Response: 201 Created, `{ "uuid": "<task-uuid>", "message": "created" }`
 
 - POST /api/acknowledge
-  - Description: Acknowledge a notification for a task (used for repeating/nagging notifications).
-  - Request: application/json
-    - Fields:
-      - `uuid` (string, required) — the task UUID
-      - `repeat_delay` (string, optional) — duration for next nag (e.g., `30m`, `1h`)
-  - Success Response: 200 OK
-    - Body: JSON `{ "acknowledged": true }`
-  - Errors: 400 on malformed JSON or missing `uuid`, 401 for auth failure, 500 on server error.
-  - Example:
-
-```sh
-curl -X POST -H 'Content-Type: application/json' \
-  -d '{"uuid":"<task-uuid>","repeat_delay":"30m"}' \
-  http://127.0.0.1:43000/api/acknowledge
-```
+  - Request JSON: `uuid` (required), `repeat_delay` (optional)
+  - Response: 200 OK, `{ "acknowledged": true }`
 
 - GET /api/debug
-  - Description: Simple debug endpoint that returns `{"debug":"ok"}`. Intended for troubleshooting. The `http.debug` config flag exists for toggling debug functionality in your deployment.
-  - Request: none
-  - Response: 200 OK
-    - Body: JSON `{ "debug": "ok" }`
+  - Response: 200 OK, `{ "debug": "ok" }` (enabled with `http.debug`)
 
-Authentication & TLS notes
-- If `http.auth_token` or `http.auth_token_file` provided, include the header:
+Taskwarrior UDA setup
 
-```sh
-H 'Authorization: Bearer <token>'
-```
+Add these lines to your `~/.taskrc` to enable notification UDAs:
 
-- If TLS is configured (`http.tls_cert`/`http.tls_key` or file-backed variants), use `https://` for requests. For local testing with self-signed certs you may need `curl -k` or provide the CA with `--cacert`.
-
-Keep secrets out of your repo: prefer `auth_token_file`, `tls_cert_file`, and `tls_key_file` pointing to files managed securely (e.g., `/run/secrets`, a secret store, or Nix-managed secrets).
-
-
-## Taskwarrior Setup
-
-Add the notification UDA and nagging (repeat) UDAs to your `.taskrc`:
-
-```bash
-# Add to ~/.taskrc
+```text
 uda.notification_date.type=date
 uda.notification_date.label=Notify At
 
-# Enable repeating (nagging) notifications per task
 uda.notification_repeat_enable.type=string
 uda.notification_repeat_enable.values=true,false
 uda.notification_repeat_enable.label=Repeat Notification
 
-# Set the nagging interval (duration)
 uda.notification_repeat_delay.type=duration
 uda.notification_repeat_delay.label=Repeat Delay
 ```
 
-### About Taskwarrior Durations
+Development
 
-Taskwarrior supports a flexible [duration format](https://taskwarrior.org/docs/durations/) for UDA values of type `duration`. Examples:
+Run tests:
 
-- `10m` (10 minutes)
-- `1h` (1 hour)
-- `2d` (2 days)
-- `1w` (1 week)
-- `1h30m` (1 hour, 30 minutes)
-
-You can use these values for `taskherald.repeat_delay` to control how often a nagging notification is sent for a task.
-
-### Example: Setting up a nagging notification
-
-```bash
-# Add a task that will nag every 30 minutes until acknowledged
-task add "Take a break" notification_date:now+1min taskherald.repeat_enable:true taskherald.repeat_delay:30m
+```sh
+go test ./...
 ```
 
-Set notification dates on tasks:
-
-```bash
-# Set notification for specific date/time
-task add "Important meeting" notification_date:2024-03-15T14:30
-
-# Set notification relative to now
-task add "Call dentist" notification_date:tomorrow
-
-# Modify existing task
-task 1 modify notification_date:2024-03-20T09:00
-```
-
-## Command Line Options
-
-```bash
-task-herald --config /path/to/config.yaml
-```
-
-Configuration precedence (highest to lowest):
-1. `--config` CLI flag
-2. `TASK_HERALD_CONFIG` environment variable
-3. `./config.yaml` (current directory)
-4. `/var/lib/task-herald/config.yaml` (system location)
-
-## Development
-
-### Using devenv (Nix)
-
-```bash
-git clone https://github.com/frigidplatypus/task-herald.git
-cd task-herald
-nix develop
-```
-
-### Using Go directly
-
-```bash
-git clone https://github.com/frigidplatypus/task-herald.git
-cd task-herald
-go mod download
-go run ./cmd --config config.yaml
-```
+Contributions welcome — open issues or PRs.
+        };

@@ -41,8 +41,13 @@ var (
 		cfg := config.Get()
 		var addr string
 		var tlsCert, tlsKey, token string
-		if cfg != nil && cfg.HTTP.Addr != "" {
-			addr = cfg.HTTP.Addr
+		if cfg != nil {
+			// prefer explicit addr for backward compatibility
+			if cfg.HTTP.Addr != "" {
+				addr = cfg.HTTP.Addr
+			} else if cfg.HTTP.Host != "" && cfg.HTTP.Port != 0 {
+				addr = fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port)
+			}
 			tlsCert = cfg.HTTP.TLSCert
 			tlsKey = cfg.HTTP.TLSKey
 			token = cfg.HTTP.AuthToken

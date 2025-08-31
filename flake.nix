@@ -107,6 +107,21 @@
                           default = "127.0.0.1:43000";
                           description = "Address to bind the HTTP API server";
                         };
+                        host = lib.mkOption {
+                          type = lib.types.nullOr lib.types.str;
+                          default = null;
+                          description = "Host to bind the HTTP API server (preferred)";
+                        };
+                        port = lib.mkOption {
+                          type = lib.types.nullOr lib.types.int;
+                          default = null;
+                          description = "Port to bind the HTTP API server (preferred)";
+                        };
+                        domain = lib.mkOption {
+                          type = lib.types.nullOr lib.types.str;
+                          default = null;
+                          description = "Public-facing domain used to build acknowledgement URLs";
+                        };
                         tls_cert = lib.mkOption {
                           type = lib.types.nullOr lib.types.str;
                           default = null;

@@ -30,6 +30,9 @@ type NtfyConfig struct {
 
 type HTTPConfig struct {
 	Addr      string `yaml:"addr"`
+	Host      string `yaml:"host"`
+	Port      int    `yaml:"port"`
+	Domain    string `yaml:"domain"`
 	TLSCert   string `yaml:"tls_cert"`
 	TLSKey    string `yaml:"tls_key"`
 	AuthToken string `yaml:"auth_token"`
