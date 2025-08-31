@@ -7,7 +7,8 @@ import (
 )
 
 // tagPattern matches +tag in descriptions (allows dashes and underscores)
-var tagPattern = regexp.MustCompile(`\B\+([a-zA-Z0-9_\-]+)`)
+// Matches +tag at word boundaries or after non-word characters
+var tagPattern = regexp.MustCompile(`\+([a-zA-Z0-9_\-]+)`) // Simpler: match all +tags
 
 // ExtractTags finds all +tags in a description and returns them as a slice
 func ExtractTags(description string) []string {
@@ -22,6 +23,8 @@ func ExtractTags(description string) []string {
 // RemoveTagsFromDescription strips all +tags from a description
 func RemoveTagsFromDescription(description string) string {
 	clean := tagPattern.ReplaceAllString(description, "")
+	// Collapse multiple spaces to one
+	clean = regexp.MustCompile(`\s+`).ReplaceAllString(clean, " ")
 	return strings.TrimSpace(clean)
 }
 

@@ -91,7 +91,7 @@ func Run(configOverride string) error {
 				}
 				notifyAt, err := util.ParseNotificationDate(task.NotificationDate)
 				if err == nil && notifyAt.After(time.Now()) {
-					config.Log(config.INFO, "Task with future notification_date: UUID=%s, Desc=\"%s\", Date=%s", task.UUID, task.Description, notifyAt.Format("2006-01-02 15:04:05 MST"))
+							   config.Log(config.INFO, "Task with future notification_date: UUID=%s, ID=%d, Desc=\"%s\", Date=%s", task.UUID, task.ID, task.Description, notifyAt.Format("2006-01-02 15:04:05 MST"))
 					futureTasks++
 				}
 			}
@@ -178,7 +178,7 @@ func Run(configOverride string) error {
 			       }
 			       msg, err := notify.RenderMessage(info, msgTmpl)
 			       if err != nil {
-				       msg = fmt.Sprintf("Task %s: %s", task.ID, task.Description)
+				       msg = fmt.Sprintf("Task %d: %s", task.ID, task.Description)
 			       }
 			       // Prepare dynamic headers (e.g., X-Title, X-Click, X-Actions)
 			       headers := map[string]string{}
