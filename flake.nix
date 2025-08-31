@@ -180,7 +180,7 @@
 
         taskHeraldPkg = pkgs.stdenv.mkDerivation {
           pname = "task-herald";
-          version = "0.0.0";
+          version = "0.7.1";
           src = ./.;
           nativeBuildInputs = [ pkgs.go ];
           buildPhase = ''
