@@ -47,7 +47,6 @@ func (t *Task) ParseNotificationDate() (time.Time, error) {
 }
 
 func ExportIncompleteTasks() ([]Task, error) {
-	// ...existing code...
 	// Get pending tasks
 	pendingCmd := exec.Command("task", "status:pending", "export", "rc.json.array=on")
 	var pendingOut bytes.Buffer
@@ -55,7 +54,8 @@ func ExportIncompleteTasks() ([]Task, error) {
 	pendingCmd.Stderr = &pendingOut
 	err := pendingCmd.Run()
 	pendingRaw := pendingOut.String()
-	// No debug logging of task export
+	// DEBUG: Log raw response from task export (pending)
+	config.Log(config.DEBUG, "DEBUG: Raw task export (pending): %s", pendingRaw)
 	if err != nil {
 		return nil, err
 	}
@@ -70,13 +70,13 @@ func ExportIncompleteTasks() ([]Task, error) {
 		}
 	}
 	if start == -1 || end == -1 || end <= start {
-		fmt.Printf("[DEBUG] Could not find JSON array in pending output\n")
+		config.Log(config.DEBUG, "DEBUG: Could not find JSON array in pending output")
 		return nil, fmt.Errorf("could not find JSON array in pending output")
 	}
 	pendingPart := pendingRaw[start : end+1]
 	var pendingTasks []Task
 	if err := json.Unmarshal([]byte(pendingPart), &pendingTasks); err != nil {
-		fmt.Printf("[DEBUG] JSON unmarshal error (pending): %v\n", err)
+		config.Log(config.DEBUG, "DEBUG: JSON unmarshal error (pending): %v", err)
 		return nil, err
 	}
 
@@ -87,7 +87,8 @@ func ExportIncompleteTasks() ([]Task, error) {
 	waitingCmd.Stderr = &waitingOut
 	err = waitingCmd.Run()
 	waitingRaw := waitingOut.String()
-	// No debug logging of task export
+	// DEBUG: Log raw response from task export (waiting)
+	config.Log(config.DEBUG, "DEBUG: Raw task export (waiting): %s", waitingRaw)
 	if err != nil {
 		return nil, err
 	}
@@ -102,22 +103,19 @@ func ExportIncompleteTasks() ([]Task, error) {
 		}
 	}
 	if start == -1 || end == -1 || end <= start {
-		fmt.Printf("[DEBUG] Could not find JSON array in waiting output\n")
+		config.Log(config.DEBUG, "DEBUG: Could not find JSON array in waiting output")
 		return nil, fmt.Errorf("could not find JSON array in waiting output")
 	}
 	waitingPart := waitingRaw[start : end+1]
 	var waitingTasks []Task
 	if err := json.Unmarshal([]byte(waitingPart), &waitingTasks); err != nil {
-		fmt.Printf("[DEBUG] JSON unmarshal error (waiting): %v\n", err)
+		config.Log(config.DEBUG, "DEBUG: JSON unmarshal error (waiting): %v", err)
 		return nil, err
 	}
 
 	// Combine both
 	allTasks := append(pendingTasks, waitingTasks...)
-	// No debug logging of parsed task counts
-
-	// Log all parsed notification dates
-	// No longer logging all tasks with notification dates to reduce log noise
+	config.Log(config.DEBUG, "DEBUG: Parsed %d pending tasks, %d waiting tasks, %d total", len(pendingTasks), len(waitingTasks), len(allTasks))
 
 	// After combining all tasks, process +tag in description
 	tagPattern := regexp.MustCompile(`\B\+([a-zA-Z0-9_\-]+)`)

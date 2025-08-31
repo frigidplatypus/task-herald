@@ -1,8 +1,8 @@
 package app
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"os"
 	"sync"
 	"task-herald/internal/config"
@@ -13,7 +13,7 @@ import (
 )
 
 func Run(configOverride string) error {
-	fmt.Println("Taskwarrior Notifications service starting...")
+	config.Log(config.INFO, "Taskwarrior Notifications service starting...")
 
 	// Precedence: CLI override -> TASK_HERALD_CONFIG env -> ./config.yaml -> /var/lib/task-herald/config.yaml
 	cfgPath := configOverride
@@ -34,6 +34,22 @@ func Run(configOverride string) error {
 	}
 	config.Set(cfg)
 
+	// DEBUG: Log parsed config struct
+	config.Log(config.DEBUG, "Loaded config: %+v", *cfg)
+
+	// DEBUG: Log relevant environment variables
+	config.Log(config.DEBUG, "TASK_HERALD_CONFIG env: %s", os.Getenv("TASK_HERALD_CONFIG"))
+
+	// INFO: Log config.yaml location
+	config.Log(config.INFO, "Loaded config.yaml from: %s", cfgPath)
+
+	// INFO: Log ntfy.sh server and endpoint
+	config.Log(config.INFO, "ntfy.sh server: %s, topic: %s", cfg.Ntfy.URL, cfg.Ntfy.GetTopic())
+
+	// INFO: Log Taskwarrior config/data location (hardcoded for now, could be improved)
+	twConfigLoc := "/home/justin/.local/share/task"
+	config.Log(config.INFO, "Taskwarrior data/config location: %s", twConfigLoc)
+
 	// Shared state for polled tasks
 	var (
 		mu               sync.RWMutex
@@ -41,6 +57,9 @@ func Run(configOverride string) error {
 		notified         = make(map[string]struct{}) // Key: UUID|notification_date
 		lastNotifiedDate = make(map[string]string)   // Key: UUID, Value: last seen notification_date
 	)
+
+	// Set log level from config
+	config.SetLogLevelFromConfig(cfg)
 
 	// Set up polling and syncing
 	taskCh := make(chan []taskwarrior.Task)
@@ -53,37 +72,51 @@ func Run(configOverride string) error {
 		for t := range taskCh {
 			mu.Lock()
 			tasks = t
-			// Log only if a task's notification date is new or changed
-			now := time.Now()
+
+			// INFO: Log total number of available tasks
+			totalTasks := len(t)
+			config.Log(config.INFO, "Total available tasks from taskwarrior: %d", totalTasks)
+
+			// INFO: Log all tasks with a future notification_date
+			futureTasks := 0
 			for _, task := range t {
 				if task.NotificationDate == "" {
 					continue
 				}
 				prev := lastNotifiedDate[task.UUID]
 				if prev != task.NotificationDate {
-					notifyAt, err := util.ParseNotificationDate(task.NotificationDate)
-					if err == nil {
-						// Only log if notification time is in the future
-						nowLocal := now.In(time.Local)
-						notifyLocal := notifyAt.In(time.Local)
-
-						// Only show tasks with future notification dates
-						if notifyLocal.After(nowLocal) {
-							fmt.Printf("[task] Task %s (%s) has notification date: %s\n", task.UUID, task.Description, notifyLocal.Format("2006-01-02 15:04:05 MST"))
-						}
-					} else {
-						fmt.Printf("[task] Task %s (%s) has notification date: %s (parse error)\n", task.UUID, task.Description, task.NotificationDate)
-					}
 					lastNotifiedDate[task.UUID] = task.NotificationDate
 				}
+				notifyAt, err := util.ParseNotificationDate(task.NotificationDate)
+				if err == nil && notifyAt.After(time.Now()) {
+					config.Log(config.INFO, "Task with future notification_date: UUID=%s, Desc=\"%s\", Date=%s", task.UUID, task.Description, notifyAt.Format("2006-01-02 15:04:05 MST"))
+					futureTasks++
+				}
 			}
+			config.Log(config.INFO, "Total tasks with future notification_date: %d", futureTasks)
+
+			// VERBOSE: Log all tasks returned by task export
+			if config.ParseLogLevel(cfg.LogLevel) >= config.VERBOSE {
+				for _, task := range t {
+					config.Log(config.VERBOSE, "VERBOSE: Task: %+v", task)
+				}
+			}
+
+			// DEBUG: Log state of internal maps
+			config.Log(config.DEBUG, "DEBUG: notified map: %+v", notified)
+			config.Log(config.DEBUG, "DEBUG: lastNotifiedDate map: %+v", lastNotifiedDate)
+
 			mu.Unlock()
 		}
 	}()
 
        // Notification scheduler (ntfy-based)
        go func() {
-	       notifier := notify.NewNotifier(cfg.Ntfy, log.Default())
+	       // Use a logger function that wraps config.Log at INFO level
+	       loggerFunc := func(format string, v ...interface{}) {
+		       config.Log(config.INFO, format, v...)
+	       }
+	       notifier := notify.NewNotifier(cfg.Ntfy, loggerFunc)
 	       for {
 		       time.Sleep(5 * time.Second)
 		       mu.RLock()
@@ -129,7 +162,7 @@ func Run(configOverride string) error {
 				       continue
 			       }
 			       // Log the notification time in both UTC and local
-			       fmt.Printf("[notify] Task %s will be notified at local: %s (UTC: %s)\n", task.UUID, notifyAt.In(time.Local).Format("2006-01-02 15:04:05 MST"), notifyAt.UTC().Format("2006-01-02 15:04:05 UTC"))
+			       config.Log(config.INFO, "[notify] Task %s will be notified at local: %s (UTC: %s)", task.UUID, notifyAt.In(time.Local).Format("2006-01-02 15:04:05 MST"), notifyAt.UTC().Format("2006-01-02 15:04:05 UTC"))
 			       // Prepare message
 			       msgTmpl := cfg.NotificationMessage
 			       info := notify.TaskInfo{
@@ -167,14 +200,14 @@ func Run(configOverride string) error {
 				       ntfyPriority = "default"
 			       }
 			       headers["X-Default"] = ntfyPriority
-			       // Send notification
-			       err = notifier.Send(nil, msg, headers)
+							   // Send notification
+							   err = notifier.Send(context.Background(), msg, headers)
 			       nowLocalMsg := time.Now().In(time.Local)
 			       if err == nil {
 				       notified[notifyKey] = struct{}{}
-				       fmt.Printf("[notify] Notification sent for task %s at %s\n", task.UUID, nowLocalMsg.Format("2006-01-02 15:04:05 MST"))
+				       config.Log(config.INFO, "[notify] Notification sent for task %s at %s", task.UUID, nowLocalMsg.Format("2006-01-02 15:04:05 MST"))
 			       } else if err != nil {
-				       fmt.Printf("[notify] Failed to send notification for task %s: %v\n", task.UUID, err)
+				       config.Log(config.ERROR, "[notify] Failed to send notification for task %s: %v", task.UUID, err)
 			       }
 		       }
 		       mu.RUnlock()
