@@ -6,15 +6,15 @@ import (
 )
 
 func TestExtractTags(t *testing.T) {
-       tests := []struct {
-	       desc string
-	       tags []string
-       }{
-	       {"This is a +foo task", []string{"foo"}},
-	       {"Multiple +foo +bar-baz +qux_1 tags", []string{"foo", "bar-baz", "qux_1"}},
-	       {"No tags here", []string{}},
-	       {"Edge+case+tag", []string{"case", "tag"}},
-       }
+	tests := []struct {
+		desc string
+		tags []string
+	}{
+		{"This is a +foo task", []string{"foo"}},
+		{"Multiple +foo +bar-baz +qux_1 tags", []string{"foo", "bar-baz", "qux_1"}},
+		{"No tags here", []string{}},
+		{"Edge+case+tag", []string{"case", "tag"}},
+	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			got := ExtractTags(tt.desc)

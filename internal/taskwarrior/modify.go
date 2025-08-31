@@ -1,7 +1,6 @@
 package taskwarrior
 
 import (
-	"os/exec"
 	"strings"
 
 	"task-herald/internal/config"
@@ -16,9 +15,11 @@ func ModifyTask(uuid string, args ...string) bool {
 		return false
 	}
 	cmdArgs := append([]string{uuid, "modify"}, args...)
-	cmd := exec.Command("task", cmdArgs...)
-	output, err := cmd.CombinedOutput()
+	cmd := execCommand("task", cmdArgs...)
 	cmdStr := "task " + strings.Join(cmdArgs, " ")
+	config.Log(config.DEBUG, "ModifyTask running: %s", cmdStr)
+	output, err := cmd.CombinedOutput()
+	config.Log(config.DEBUG, "ModifyTask response: %s", string(output))
 	if err != nil {
 		config.Log(config.ERROR, "ModifyTask failed: %s\nError: %v\nOutput: %s", cmdStr, err, string(output))
 		return false

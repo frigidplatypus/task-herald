@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// execCommand is used for testability. In production, it is exec.Command.
+var execCommand = exec.Command
+
 type Task struct {
 	ID               int      `json:"id"`
 	UUID             string   `json:"uuid"`
@@ -46,13 +49,12 @@ func (t *Task) ParseNotificationDate() (time.Time, error) {
 
 func ExportIncompleteTasks() ([]Task, error) {
 	// Get pending tasks
-	pendingCmd := exec.Command("task", "status:pending", "export", "rc.json.array=on")
+	pendingCmd := execCommand("task", "status:pending", "export", "rc.json.array=on")
 	var pendingOut bytes.Buffer
 	pendingCmd.Stdout = &pendingOut
 	pendingCmd.Stderr = &pendingOut
 	err := pendingCmd.Run()
 	pendingRaw := pendingOut.String()
-	// DEBUG: Log raw response from task export (pending)
 	config.Log(config.DEBUG, "DEBUG: Raw task export (pending): %s", pendingRaw)
 	if err != nil {
 		return nil, err
@@ -79,13 +81,12 @@ func ExportIncompleteTasks() ([]Task, error) {
 	}
 
 	// Get waiting tasks
-	waitingCmd := exec.Command("task", "status:waiting", "export", "rc.json.array=on")
+	waitingCmd := execCommand("task", "status:waiting", "export", "rc.json.array=on")
 	var waitingOut bytes.Buffer
 	waitingCmd.Stdout = &waitingOut
 	waitingCmd.Stderr = &waitingOut
 	err = waitingCmd.Run()
 	waitingRaw := waitingOut.String()
-	// DEBUG: Log raw response from task export (waiting)
 	config.Log(config.DEBUG, "DEBUG: Raw task export (waiting): %s", waitingRaw)
 	if err != nil {
 		return nil, err
@@ -115,30 +116,29 @@ func ExportIncompleteTasks() ([]Task, error) {
 	allTasks := append(pendingTasks, waitingTasks...)
 	config.Log(config.DEBUG, "DEBUG: Parsed %d pending tasks, %d waiting tasks, %d total", len(pendingTasks), len(waitingTasks), len(allTasks))
 
-       // After combining all tasks, process +tag in description
-       for _, task := range allTasks {
-	       config.Log(config.DEBUG, "Processing task: ID=%d, UUID=%s, Desc=\"%s\"", task.ID, task.UUID, task.Description)
-	       tags := ExtractTags(task.Description)
-	       if len(tags) == 0 {
-		       continue
-	       }
-	       config.Log(config.INFO, "Found +tag(s) in task %s: %v", task.UUID, tags)
-	       // Remove +tag from description
-	       newDesc := RemoveTagsFromDescription(task.Description)
-	       // Add tags and update description in Taskwarrior
-	       for _, tag := range tags {
-		       normTag := DashToCamel(tag)
-		       config.Log(config.INFO, "Adding tag '+%s' (normalized: '+%s') to task %s", tag, normTag, task.UUID)
-		       ModifyTask(task.UUID, "+"+normTag)
-	       }
-	       if newDesc != task.Description {
-		       config.Log(config.VERBOSE, "Updating description for task %s: \"%s\" -> \"%s\"", task.UUID, task.Description, newDesc)
-		       ModifyTask(task.UUID, "description:"+newDesc)
-	       }
-       }
+	// After combining all tasks, process +tag in description
+	for _, task := range allTasks {
+		config.Log(config.DEBUG, "Processing task: ID=%d, UUID=%s, Desc=\"%s\"", task.ID, task.UUID, task.Description)
+		tags := ExtractTags(task.Description)
+		if len(tags) == 0 {
+			continue
+		}
+		config.Log(config.INFO, "Found +tag(s) in task %s: %v", task.UUID, tags)
+		// Remove +tag from description
+		newDesc := RemoveTagsFromDescription(task.Description)
+		// Add tags and update description in Taskwarrior
+		for _, tag := range tags {
+			normTag := DashToCamel(tag)
+			config.Log(config.INFO, "Adding tag '+%s' (normalized: '+%s') to task %s", tag, normTag, task.UUID)
+			ModifyTask(task.UUID, "+"+normTag)
+		}
+		if newDesc != task.Description {
+			config.Log(config.VERBOSE, "Updating description for task %s: \"%s\" -> \"%s\"", task.UUID, task.Description, newDesc)
+			ModifyTask(task.UUID, "description:"+newDesc)
+		}
+	}
 	return allTasks, nil
 }
-
 
 // Poller polls Taskwarrior at the given interval and sends tasks to the channel.
 func Poller(interval time.Duration, out chan<- []Task, stop <-chan struct{}) {

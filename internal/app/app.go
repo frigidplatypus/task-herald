@@ -4,13 +4,41 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
+	"strings"
 	"sync"
+	"text/template"
+	"net/url"
 	"task-herald/internal/config"
 	"task-herald/internal/notify"
 	"task-herald/internal/taskwarrior"
 	"task-herald/internal/util"
 	"time"
 )
+
+// Overridable hooks for testing
+var (
+	syncOnceFunc = func() { taskwarrior.SyncOnce() }
+	pollerFunc   = func(interval time.Duration, out chan<- []taskwarrior.Task, stop <-chan struct{}) {
+		taskwarrior.Poller(interval, out, stop)
+	}
+	syncTaskwarriorFunc = func(stop <-chan struct{}) { taskwarrior.SyncTaskwarrior(stop) }
+	runSigCh            = func() <-chan struct{} { return make(chan struct{}) }
+)
+
+// Additional overridable hooks for testing
+var (
+	loadConfigFunc = config.LoadConfig
+	newNotifierFunc = func(cfg config.NtfyConfig, logger func(format string, v ...interface{})) typeNotifier {
+		return notify.NewNotifier(cfg, logger)
+	}
+	notifySleepDuration = 5 * time.Second
+)
+
+// typeNotifier is an interface used so tests can inject a fake notifier
+type typeNotifier interface {
+	Send(ctx context.Context, message string, headers map[string]string) error
+}
 
 func Run(configOverride string) error {
 	config.Log(config.INFO, "Taskwarrior Notifications service starting...")
@@ -28,7 +56,7 @@ func Run(configOverride string) error {
 		}
 	}
 
-	cfg, err := config.LoadConfig(cfgPath)
+	cfg, err := loadConfigFunc(cfgPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -65,9 +93,10 @@ func Run(configOverride string) error {
 	taskCh := make(chan []taskwarrior.Task)
 	stopCh := make(chan struct{})
 	// Run 'task sync' immediately at startup
-	taskwarrior.SyncOnce()
-	go taskwarrior.Poller(cfg.PollInterval, taskCh, stopCh)
-	go taskwarrior.SyncTaskwarrior(stopCh)
+	// Use overridable functions to allow tests to mock behavior
+	syncOnceFunc()
+	go pollerFunc(cfg.PollInterval, taskCh, stopCh)
+	go syncTaskwarriorFunc(stopCh)
 
 	// Update tasks on poll
 	go func() {
@@ -91,7 +120,7 @@ func Run(configOverride string) error {
 				}
 				notifyAt, err := util.ParseNotificationDate(task.NotificationDate)
 				if err == nil && notifyAt.After(time.Now()) {
-							   config.Log(config.INFO, "Task with future notification_date: UUID=%s, ID=%d, Desc=\"%s\", Date=%s", task.UUID, task.ID, task.Description, notifyAt.Format("2006-01-02 15:04:05 MST"))
+					config.Log(config.INFO, "Task with future notification_date: UUID=%s, ID=%d, Desc=\"%s\", Date=%s", task.UUID, task.ID, task.Description, notifyAt.Format("2006-01-02 15:04:05 MST"))
 					futureTasks++
 				}
 			}
@@ -112,114 +141,127 @@ func Run(configOverride string) error {
 		}
 	}()
 
-       // Notification scheduler (ntfy-based)
-       go func() {
-	       // Use a logger function that wraps config.Log at INFO level
-	       loggerFunc := func(format string, v ...interface{}) {
-		       config.Log(config.INFO, format, v...)
-	       }
-	       notifier := notify.NewNotifier(cfg.Ntfy, loggerFunc)
-	       for {
-		       time.Sleep(5 * time.Second)
-		       mu.RLock()
-		       now := time.Now()
-		       for _, task := range tasks {
-			       // Skip if already acknowledged (web interface removed)
-			       ndates := []string{task.NotificationDate}
-			       if v, ok := getUDA(task, "taskherald.notification_date"); ok && v != "" {
-				       ndates = append(ndates, v)
-			       }
-			       var notifyAt time.Time
-			       var notifyDateStr string
-			       for _, nd := range ndates {
-				       if nd == "" {
-					       continue
-				       }
-				       t, err := util.ParseNotificationDate(nd)
-				       if err == nil && (notifyAt.IsZero() || t.Before(notifyAt)) {
-					       notifyAt = t
-					       notifyDateStr = nd
-				       }
-			       }
-			       if notifyAt.IsZero() {
-				       continue
-			       }
-			       // Only process notifications that are due right now (within the last 5 minutes)
-			       nowLocal := now.In(time.Local)
-			       notifyLocal := notifyAt.In(time.Local)
+	// Notification scheduler (ntfy-based)
+	go func() {
+		// Use a logger function that wraps config.Log at INFO level
+		loggerFunc := func(format string, v ...interface{}) {
+			config.Log(config.INFO, format, v...)
+		}
+		notifier := newNotifierFunc(cfg.Ntfy, loggerFunc)
+		for {
+			time.Sleep(notifySleepDuration)
+			mu.RLock()
+			now := time.Now()
+			for _, task := range tasks {
+				// Skip if already acknowledged (web interface removed)
+				ndates := []string{task.NotificationDate}
+				if v, ok := getUDA(task, "taskherald.notification_date"); ok && v != "" {
+					ndates = append(ndates, v)
+				}
+				var notifyAt time.Time
+				var notifyDateStr string
+				for _, nd := range ndates {
+					if nd == "" {
+						continue
+					}
+					t, err := util.ParseNotificationDate(nd)
+					if err == nil && (notifyAt.IsZero() || t.Before(notifyAt)) {
+						notifyAt = t
+						notifyDateStr = nd
+					}
+				}
+				if notifyAt.IsZero() {
+					continue
+				}
+				// Only process notifications that are due right now (within the last 5 minutes)
+				nowLocal := now.In(time.Local)
+				notifyLocal := notifyAt.In(time.Local)
 
-			       // Skip if notification time is in the future
-			       if notifyLocal.After(nowLocal) {
-				       continue
-			       }
+				// Skip if notification time is in the future
+				if notifyLocal.After(nowLocal) {
+					continue
+				}
 
-			       // Only process if notification is due within the last 5 minutes (to catch notifications that were missed)
-			       fiveMinutesAgo := nowLocal.Add(-5 * time.Minute)
-			       if notifyLocal.Before(fiveMinutesAgo) {
-				       continue
-			       }
-			       // Use UUID|notification_date as the key
-			       notifyKey := fmt.Sprintf("%s|%s", task.UUID, notifyDateStr)
-			       if _, already := notified[notifyKey]; already {
-				       continue
-			       }
-			       // Log the notification time in both UTC and local
-			       config.Log(config.INFO, "[notify] Task %s will be notified at local: %s (UTC: %s)", task.UUID, notifyAt.In(time.Local).Format("2006-01-02 15:04:05 MST"), notifyAt.UTC().Format("2006-01-02 15:04:05 UTC"))
-			       // Prepare message
-			       msgTmpl := cfg.NotificationMessage
-			       info := notify.TaskInfo{
-				       ID:               fmt.Sprintf("%d", task.ID),
-				       UUID:             task.UUID,
-				       Description:      task.Description,
-				       Tags:             task.Tags,
-				       Project:          task.Project,
-				       Priority:         task.Priority,
-				       NotificationDate: &notifyAt,
-			       }
-			       msg, err := notify.RenderMessage(info, msgTmpl)
-			       if err != nil {
-				       msg = fmt.Sprintf("Task %d: %s", task.ID, task.Description)
-			       }
-			       // Prepare dynamic headers (e.g., X-Title, X-Click, X-Actions)
-			       headers := map[string]string{}
-			       for k, v := range cfg.Ntfy.Headers {
-				       headers[k] = v
-			       }
-			       // Set X-Title to project
-			       if task.Project != "" {
-				       headers["X-Title"] = task.Project
-			       }
-			       // Map Taskwarrior priority to ntfy priority for X-Default
-			       var ntfyPriority string
-			       switch task.Priority {
-			       case "H", "h":
-				       ntfyPriority = "max"
-			       case "M", "m":
-				       ntfyPriority = "high"
-			       case "L", "l":
-				       ntfyPriority = "default"
-			       default:
-				       ntfyPriority = "default"
-			       }
-			       headers["X-Default"] = ntfyPriority
-							   // Send notification
-							   err = notifier.Send(context.Background(), msg, headers)
-			       nowLocalMsg := time.Now().In(time.Local)
-			       if err == nil {
-				       notified[notifyKey] = struct{}{}
-				       config.Log(config.INFO, "[notify] Notification sent for task %s at %s", task.UUID, nowLocalMsg.Format("2006-01-02 15:04:05 MST"))
-			       } else if err != nil {
-				       config.Log(config.ERROR, "[notify] Failed to send notification for task %s: %v", task.UUID, err)
-			       }
-		       }
-		       mu.RUnlock()
-	       }
-       }()
+				// Only process if notification is due within the last 5 minutes (to catch notifications that were missed)
+				fiveMinutesAgo := nowLocal.Add(-5 * time.Minute)
+				if notifyLocal.Before(fiveMinutesAgo) {
+					continue
+				}
+				// Use UUID|notification_date as the key
+				notifyKey := fmt.Sprintf("%s|%s", task.UUID, notifyDateStr)
+				if _, already := notified[notifyKey]; already {
+					continue
+				}
+				// Log the notification time in both UTC and local
+				config.Log(config.INFO, "[notify] Task %s will be notified at local: %s (UTC: %s)", task.UUID, notifyAt.In(time.Local).Format("2006-01-02 15:04:05 MST"), notifyAt.UTC().Format("2006-01-02 15:04:05 UTC"))
+				// Prepare message
+				msgTmpl := cfg.NotificationMessage
+				info := notify.TaskInfo{
+					ID:               fmt.Sprintf("%d", task.ID),
+					UUID:             task.UUID,
+					Description:      task.Description,
+					Tags:             task.Tags,
+					Project:          task.Project,
+					Priority:         task.Priority,
+					NotificationDate: &notifyAt,
+				}
+				msg, err := notify.RenderMessage(info, msgTmpl)
+				if err != nil {
+					msg = fmt.Sprintf("Task %d: %s", task.ID, task.Description)
+				}
+				// Prepare dynamic headers (e.g., X-Title, X-Click, X-Actions)
+				headers := map[string]string{}
+				// Render configured headers as templates against TaskInfo (allow urlquery func)
+				funcMap := template.FuncMap{"urlquery": url.QueryEscape}
+				for k, v := range cfg.Ntfy.Headers {
+					// try to render template; if fails, fall back to raw value
+					t, err := template.New(k).Funcs(funcMap).Parse(v)
+					if err != nil {
+						headers[k] = v
+						continue
+					}
+					var buf strings.Builder
+					if err := t.Execute(&buf, info); err != nil {
+						headers[k] = v
+						continue
+					}
+					headers[k] = buf.String()
+				}
+				// Set X-Title to project
+				if task.Project != "" {
+					headers["X-Title"] = task.Project
+				}
+				// Map Taskwarrior priority to ntfy priority for X-Default
+				var ntfyPriority string
+				switch task.Priority {
+				case "H", "h":
+					ntfyPriority = "max"
+				case "M", "m":
+					ntfyPriority = "high"
+				case "L", "l":
+					ntfyPriority = "default"
+				default:
+					ntfyPriority = "default"
+				}
+				headers["X-Default"] = ntfyPriority
+				// Send notification
+				err = notifier.Send(context.Background(), msg, headers)
+				nowLocalMsg := time.Now().In(time.Local)
+				if err == nil {
+					notified[notifyKey] = struct{}{}
+					config.Log(config.INFO, "[notify] Notification sent for task %s at %s", task.UUID, nowLocalMsg.Format("2006-01-02 15:04:05 MST"))
+				} else if err != nil {
+					config.Log(config.ERROR, "[notify] Failed to send notification for task %s: %v", task.UUID, err)
+				}
+			}
+			mu.RUnlock()
+		}
+	}()
 
 	// Web server removed
 
 	// Block until interrupted (SIGINT/SIGTERM)
-	sigCh := make(chan struct{})
+	sigCh := runSigCh()
 	select {
 	case <-sigCh:
 	}
@@ -251,10 +293,32 @@ func getUDA(task taskwarrior.Task, field string) (string, bool) {
 
 // getTaskField uses reflection to get a field by name from Task struct or its map (if present)
 func getTaskField(task *taskwarrior.Task, field string) (string, bool) {
-	// If you add fields to Task struct, add them here
-	// For now, try to use struct tags if present, else fallback to map (if you add one)
-	// This is a placeholder for future extensibility
-	// If you use map[string]interface{} for UDAs, handle here
+	// Use reflection to get a field by name (case-insensitive) from Task struct
+	// Supported fields: ID, UUID, Description, NotificationDate, Tags, Priority, Project, Status
+	v := reflect.ValueOf(task).Elem()
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if strings.EqualFold(f.Name, field) || strings.EqualFold(f.Tag.Get("json"), field) {
+			fv := v.Field(i)
+			// Handle string fields
+			switch fv.Kind() {
+			case reflect.String:
+				return fv.String(), fv.String() != ""
+			case reflect.Int, reflect.Int64:
+				return fmt.Sprintf("%d", fv.Int()), true
+			case reflect.Slice:
+				// only handle []string
+				if fv.Type().Elem().Kind() == reflect.String {
+					ss := make([]string, fv.Len())
+					for j := 0; j < fv.Len(); j++ {
+						ss[j] = fv.Index(j).String()
+					}
+					return strings.Join(ss, ","), fv.Len() > 0
+				}
+			}
+		}
+	}
 	return "", false
 }
 

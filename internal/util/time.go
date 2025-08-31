@@ -9,6 +9,7 @@ import (
 func ParseNotificationDate(s string) (time.Time, error) {
 	layouts := []string{
 		time.RFC3339,
+	"2006-01-02 15:04:05",
 		"2006-01-02T15:04:05",
 		"2006-01-02 15:04",
 		"20060102T150405Z", // Taskwarrior compact UTC format

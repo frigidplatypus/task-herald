@@ -1,3 +1,6 @@
+# Run all Go tests recursively
+test:
+  go test ./...
 # Justfile for task-herald
 
 # Build the Go project
