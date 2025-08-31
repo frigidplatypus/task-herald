@@ -99,29 +99,6 @@
                     default = null;
                     description = "Custom notification message template";
                   };
-                  web = lib.mkOption {
-                    type = lib.types.submodule {
-                      options = {
-                        host = lib.mkOption {
-                          type = lib.types.str;
-                          default = "127.0.0.1";
-                          description = "Host address to listen on";
-                        };
-                        port = lib.mkOption {
-                          type = lib.types.int;
-                          default = 8080;
-                          description = "Port to listen on";
-                        };
-                        domain = lib.mkOption {
-                          type = lib.types.str;
-                          default = "localhost";
-                          description = "Domain or hostname for web UI (used for X-Actions URLs)";
-                        };
-                      };
-                    };
-                    default = {};
-                    description = "Web server settings";
-                  };
                   udas = lib.mkOption {
                     type = lib.types.submodule {
                       options = {
