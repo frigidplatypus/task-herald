@@ -38,7 +38,7 @@ func TestCreateTaskHandler_Success(t *testing.T) {
 	r := httptest.NewServer(NewRouter())
 	defer r.Close()
 
-	reqBody := CreateTaskRequest{Description: "do it", Project: "p"}
+	reqBody := CreateTaskRequest{Description: "do it", Project: "p", Annotations: []string{"note:foo"}}
 	b, _ := json.Marshal(reqBody)
 	resp, err := http.Post(r.URL+"/api/create-task", "application/json", bytes.NewReader(b))
 	if err != nil {
@@ -52,6 +52,32 @@ func TestCreateTaskHandler_Success(t *testing.T) {
 	_ = json.NewDecoder(resp.Body).Decode(&res)
 	if res.UUID != "uuid-123" {
 		t.Fatalf("unexpected uuid: %v", res)
+	}
+}
+
+func TestCreateTaskHandler_AnnotationsPassed(t *testing.T) {
+	// verify CreateTaskFunc receives annotations
+	orig := CreateTaskFunc
+	defer func() { CreateTaskFunc = orig }()
+	CreateTaskFunc = func(req CreateTaskRequest) (string, error) {
+		if len(req.Annotations) != 2 || req.Annotations[0] != "a1" || req.Annotations[1] != "a2" {
+			return "", io.ErrUnexpectedEOF
+		}
+		return "uuid-xyz", nil
+	}
+
+	r := httptest.NewServer(NewRouter())
+	defer r.Close()
+
+	reqBody := CreateTaskRequest{Description: "annotate", Annotations: []string{"a1", "a2"}}
+	b, _ := json.Marshal(reqBody)
+	resp, err := http.Post(r.URL+"/api/create-task", "application/json", bytes.NewReader(b))
+	if err != nil {
+		t.Fatalf("post failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d", resp.StatusCode)
 	}
 }
 

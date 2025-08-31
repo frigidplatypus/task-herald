@@ -11,6 +11,7 @@ type CreateTaskRequest struct {
     Description      string   `json:"description"`
     Project          string   `json:"project,omitempty"`
     Tags             []string `json:"tags,omitempty"`
+    Annotations      []string `json:"annotations,omitempty"`
     NotificationDate string   `json:"notification_date,omitempty"`
 }
 

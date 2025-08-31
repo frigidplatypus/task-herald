@@ -154,6 +154,75 @@ udas:
 
 Task Herald uses [ntfy](https://ntfy.sh/) for notifications. You can configure the ntfy server, topic, token, and headers in your config file. For security, you can store the topic in a file using the `topic_file` option.
 
+## HTTP API Endpoints
+
+When the HTTP API is enabled (see `http.addr` in configuration), task-herald exposes a small management API. If `http.auth_token` or `http.auth_token_file` is set, all endpoints require the header `Authorization: Bearer <token>`.
+
+- GET /api/health
+  - Description: Simple health check.
+  - Request: none
+  - Response: 200 OK
+    - Body: JSON {"status": "ok"}
+  - Example:
+
+```sh
+curl -sS http://127.0.0.1:43000/api/health
+```
+
+- POST /api/create-task
+  - Description: Create a Taskwarrior task used by task-herald. This is a thin wrapper used by UIs or automation.
+  - Request: application/json
+    - Fields:
+      - `description` (string, required)
+      - `project` (string, optional)
+      - `tags` (array of strings, optional)
+      - `annotations` (array of strings, optional) — Taskwarrior-style annotations (free-form strings)
+      - `notification_date` (string, optional) — use Taskwarrior date formats (e.g., `2025-09-01T09:00`, `tomorrow`, or `now+1h`).
+  - Success Response: 201 Created
+    - Body: JSON `{ "uuid": "<task-uuid>", "message": "created" }`
+  - Errors: 400 on malformed JSON or missing `description`, 401 if auth required and no/invalid token, 500 on server error.
+  - Example:
+
+```sh
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{"description":"Take out trash","notification_date":"tomorrow"}' \
+  http://127.0.0.1:43000/api/create-task
+```
+
+- POST /api/acknowledge
+  - Description: Acknowledge a notification for a task (used for repeating/nagging notifications).
+  - Request: application/json
+    - Fields:
+      - `uuid` (string, required) — the task UUID
+      - `repeat_delay` (string, optional) — duration for next nag (e.g., `30m`, `1h`)
+  - Success Response: 200 OK
+    - Body: JSON `{ "acknowledged": true }`
+  - Errors: 400 on malformed JSON or missing `uuid`, 401 for auth failure, 500 on server error.
+  - Example:
+
+```sh
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{"uuid":"<task-uuid>","repeat_delay":"30m"}' \
+  http://127.0.0.1:43000/api/acknowledge
+```
+
+- GET /api/debug
+  - Description: Simple debug endpoint that returns `{"debug":"ok"}`. Intended for troubleshooting. The `http.debug` config flag exists for toggling debug functionality in your deployment.
+  - Request: none
+  - Response: 200 OK
+    - Body: JSON `{ "debug": "ok" }`
+
+Authentication & TLS notes
+- If `http.auth_token` or `http.auth_token_file` provided, include the header:
+
+```sh
+H 'Authorization: Bearer <token>'
+```
+
+- If TLS is configured (`http.tls_cert`/`http.tls_key` or file-backed variants), use `https://` for requests. For local testing with self-signed certs you may need `curl -k` or provide the CA with `--cacert`.
+
+Keep secrets out of your repo: prefer `auth_token_file`, `tls_cert_file`, and `tls_key_file` pointing to files managed securely (e.g., `/run/secrets`, a secret store, or Nix-managed secrets).
+
 
 ## Taskwarrior Setup
 
