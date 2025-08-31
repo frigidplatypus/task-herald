@@ -64,6 +64,8 @@ func Run(configOverride string) error {
 	// Set up polling and syncing
 	taskCh := make(chan []taskwarrior.Task)
 	stopCh := make(chan struct{})
+	// Run 'task sync' immediately at startup
+	taskwarrior.SyncOnce()
 	go taskwarrior.Poller(cfg.PollInterval, taskCh, stopCh)
 	go taskwarrior.SyncTaskwarrior(stopCh)
 
