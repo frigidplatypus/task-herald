@@ -209,8 +209,7 @@
             go build -ldflags "-s -w" -o $out/bin/task-herald ./cmd
           '';
           installPhase = ''
-            mkdir -p $out/bin
-            cp bin/task-herald $out/bin/
+            # Binary is already at $out/bin from buildPhase
             # web interface removed
           '';
           meta = {
