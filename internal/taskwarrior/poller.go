@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"unicode"
 	"task-herald/internal/config"
 	"time"
 )
@@ -120,30 +121,52 @@ func ExportIncompleteTasks() ([]Task, error) {
 	// After combining all tasks, process +tag in description
 	tagPattern := regexp.MustCompile(`\B\+([a-zA-Z0-9_\-]+)`)
 	for _, task := range allTasks {
-		config.Log(config.DEBUG, "Processing task: ID=%d, UUID=%s, Desc=\"%s\"", task.ID, task.UUID, task.Description)
-		matches := tagPattern.FindAllStringSubmatch(task.Description, -1)
-		if len(matches) == 0 {
-			continue
-		}
-		tagsToAdd := make(map[string]struct{})
-		for _, m := range matches {
-			tagsToAdd[m[1]] = struct{}{}
-		}
-		config.Log(config.INFO, "Found +tag(s) in task %s: %v", task.UUID, matches)
-		// Remove +tag from description
-		newDesc := tagPattern.ReplaceAllString(task.Description, "")
-		newDesc = strings.TrimSpace(newDesc)
-		// Add tags and update description in Taskwarrior
-		for tag := range tagsToAdd {
-			config.Log(config.INFO, "Adding tag '+%s' to task %s", tag, task.UUID)
-			ModifyTask(task.UUID, "+"+tag)
-		}
-		if newDesc != task.Description {
-			config.Log(config.VERBOSE, "Updating description for task %s: \"%s\" -> \"%s\"", task.UUID, task.Description, newDesc)
-			ModifyTask(task.UUID, "description:"+newDesc)
-		}
+	       config.Log(config.DEBUG, "Processing task: ID=%d, UUID=%s, Desc=\"%s\"", task.ID, task.UUID, task.Description)
+	       matches := tagPattern.FindAllStringSubmatch(task.Description, -1)
+	       if len(matches) == 0 {
+		       continue
+	       }
+	       tagsToAdd := make(map[string]struct{})
+	       for _, m := range matches {
+		       tagsToAdd[m[1]] = struct{}{}
+	       }
+	       config.Log(config.INFO, "Found +tag(s) in task %s: %v", task.UUID, matches)
+	       // Remove +tag from description
+	       newDesc := tagPattern.ReplaceAllString(task.Description, "")
+	       newDesc = strings.TrimSpace(newDesc)
+	       // Add tags and update description in Taskwarrior
+	       for tag := range tagsToAdd {
+		       normTag := dashToCamel(tag)
+		       config.Log(config.INFO, "Adding tag '+%s' (normalized: '+%s') to task %s", tag, normTag, task.UUID)
+		       ModifyTask(task.UUID, "+"+normTag)
+	       }
+	       if newDesc != task.Description {
+		       config.Log(config.VERBOSE, "Updating description for task %s: \"%s\" -> \"%s\"", task.UUID, task.Description, newDesc)
+		       ModifyTask(task.UUID, "description:"+newDesc)
+	       }
 	}
 	return allTasks, nil
+}
+
+// dashToCamel converts dash-separated strings to camelCase (e.g., foo-bar-baz -> fooBarBaz)
+func dashToCamel(s string) string {
+       var result strings.Builder
+       upper := false
+       for i, r := range s {
+	       if r == '-' {
+		       upper = true
+		       continue
+	       }
+	       if upper {
+		       result.WriteRune(unicode.ToUpper(r))
+		       upper = false
+	       } else if i == 0 {
+		       result.WriteRune(unicode.ToLower(r))
+	       } else {
+		       result.WriteRune(r)
+	       }
+       }
+	return result.String()
 }
 
 // Poller polls Taskwarrior at the given interval and sends tasks to the channel.
